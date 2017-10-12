@@ -11,17 +11,17 @@ HDR = trim.h utils.h hmm.h matrices.h
 INC = -I/usr/local/include
 
 
-all : probmask
+all : fastZorro
 
 .c.o: $(HDR)
 	$(CC) $(CFLAGS) $(INC) -c $*.c
 
-probmask : $(OBJS) $(HDR)
-	$(CC) $(CFLAGS) $(INC) $(LIB) -o probmask $(OBJS)
+fastZorro : $(OBJS) $(HDR)
+	$(CC) $(CFLAGS) $(INC) $(LIB) -o fastZorro $(OBJS)
 
 clean:
 	rm -f $(OBJS)
-	rm -f probmask
+	rm -f fastZorro
 	rm -f core
 	rm -f *~
 	rm -f a.out
