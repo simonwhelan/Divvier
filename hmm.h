@@ -1,12 +1,12 @@
 
 
-#define ADD 1	// New
+#define ADD
 #define LONG
 #define ENDTRANS
 #define NCSTATE
 #define WEIGHT
-#define WEIGHTING 1 // New
-#define verbose 1 // new
+#define WEIGHTING
+#define verbose
 
 
 EXTERN double initDistribDefault[];

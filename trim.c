@@ -6,7 +6,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <math.h>
-
+#include <time.h>
 
 #define EXTERN
 #include "trim.h"
@@ -20,11 +20,15 @@
 
 
 int main(int argc,char **argv){ 
-  int i;
   if(argc < 2){
     printf("Input file not specified\n");
     exit(EXIT_FAILURE);
   }
+
+  clock_t start, end;
+  double cpu_time_used;
+  start = clock();
+
 
   // Hard coded options
   JTT = 0;
@@ -34,9 +38,18 @@ int main(int argc,char **argv){
 
   readSeq(argv[argc-1]);
 
+  printf("%d  %d\n",Nseq,alen);
+  for(int i = 0 ; i < Nseq ; i++) {
+	  printf("%s\n",names[i]);
+  }
+
   initHMM(alen);
   calc_posterior(alen);
 
+  end = clock();
+  cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+  fprintf(stderr,"CPU time used: %.2f seconds\n",cpu_time_used);
   return 1;
   
 }

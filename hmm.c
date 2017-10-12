@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <math.h>
+#include <stdbool.h>
 
 #define AS_HASHIM 1
 
@@ -138,6 +139,24 @@ void forward(char *seqX,char *seqY,int lenX,int lenY);
 void backward(char *seqX,char *seqY,int lenX,int lenY);
 void addPosterior(int X,int Y);
 
+/////////////////////////////////////////////////////////////////
+// Stuff simon has added for bounding
+#define DO_APPROX 1
+#define my_min(a,b) ((a)<(b)?(a):(b))	// Duplicate required
+#define my_max(a,b) ((a)>(b)?(a):(b))
+int *leftBounds,*rightBounds; // The upper and lower bounds on the DP matrix for each run;
+double *checkSpaceX, *checkSpaceY;
+void BuildBounds(int X, int Y, bool Flip); // Fills left and right bounds with appropriate values, assuming the longest sequence is going accross (index j) in the matrix
+void approx_forward(char *seqX,char *seqY,int lenX,int lenY);
+void approx_backward(char *seqX,char *seqY,int lenX,int lenY);
+bool RunMakePosteriors(int X, int Y);
+bool MakePosteriors(int X, int Y, bool Flip);
+int INITIAL_BOUND_SIZE = 25;			// The original bound used for each run (15-25 seem like good starting choices)
+int BOUND_SIZE;							// The active one
+int BOUND_ATTEMPTS = 3;					// Number of attempts at bounded prob before aborting and doing full calc
+double bound_error_threshold = 0.005;	// Acceptable probability on pairHMM edge; this has the greatest effect on PP stability (0.0001 seem very stable)
+/////////////////////////////////////////////////////////////////
+
 
 void calc_posterior(int len) {
 	int i, j;
@@ -146,14 +165,16 @@ void calc_posterior(int len) {
 	Xpos = (int *) (malloc((len) * sizeof(int)));
 	Ypos = (int *) (malloc((len) * sizeof(int)));
 	states = (int *) (malloc((len) * sizeof(int)));
+	checkSpaceX = (double *) malloc(len * sizeof(double));
+	checkSpaceY = (double *) malloc(len * sizeof(double));
+	leftBounds = (int *) malloc((len) * sizeof(int));
+	rightBounds = (int *) malloc((len) * sizeof(int));
 	for (i = 0; i < len; i++) {
 		posterior[i] = 0.0;
 		sample[i] = 0;
 	}
 	TOT_DIST = 0.0;
 	for (i = 0; i < Nseq; i++) {
-		if (verbose)
-			fprintf(stderr, "Sequence %d...\n", i);
 		for (j = i + 1; j < Nseq; j++) {
 			if (MATRICES)
 				make_pmatrix(emitPairsDefault, dists[i][j] / 2);
@@ -162,11 +183,68 @@ void calc_posterior(int len) {
 	}
 }
 
+// Function that manages approximation during posterior estimation for X and Y
+bool RunMakePosteriors(int X, int Y) {
+	int i;
+	bool DoneFlip = false;
+	BOUND_SIZE = INITIAL_BOUND_SIZE;
+	if (lens[X] > lens[Y]) {
+		i = Y;
+		Y = X;
+		X = i;
+		DoneFlip=true;
+	}
+	for(i = 0; i < BOUND_ATTEMPTS; i++) {
+		if(MakePosteriors(X,Y,DoneFlip)) { break; }
+//		printf("\nBound failed on %d - %d comparison", X, Y); fflush(stdout);
+		BOUND_SIZE *= 2;		// Expand the bound on fail
+	}
+	if(i == BOUND_ATTEMPTS) {
+		BOUND_SIZE = alen;
+		if(!MakePosteriors(X,Y,DoneFlip)) {
+			printf("\nBounding seems broken even at maximal value...\n");
+			exit(-1);
+		}
+	}
+	return DoneFlip;
+}
+
+// Function that makes the posteriors
+// Function that calculates the posteriors for sequence X and Y
+bool MakePosteriors(int X, int Y, bool Flip) {
+	int i;
+
+	//	printf("\nDoing posterior %d %d\n", X, Y); fflush(stdout);
+	// Build the bounds and run the pairHMM
+	BuildBounds(X, Y, Flip);
+	approx_forward(sequence[X], sequence[Y], lens[X], lens[Y]);
+	approx_backward(sequence[X], sequence[Y], lens[X], lens[Y]);
+
+	// Goes through the sequence and checks there isn't much probability mass on the non-edge bounds
+	for (i = 1; i <= lens[X]; i++) {
+		double BoundCheck = 0.0;
+		if (leftBounds[i - 1] != 0) {
+			BoundCheck = exp(Mfmatrix[i][leftBounds[i - 1]]
+					+ Mbmatrix[i][leftBounds[i - 1]] - pxy);
+		}
+		if (rightBounds[i - 1] != lens[Y]) {
+			BoundCheck = my_max(exp(Mfmatrix[i][rightBounds[i - 1]]
+					+ Mbmatrix[i][rightBounds[i - 1]] - pxy),BoundCheck);
+		}
+		if (BoundCheck > bound_error_threshold) {
+//			printf("\n[X=%d,Y=%d]: Bound problem: %f for bound %d (%d,%d)",X,Y,BoundCheck,BOUND_SIZE,leftBounds[i-1],rightBounds[i-1]);
+			return false;
+		}
+	}
+	return true;
+}
+
+#define DEBUG_PP 0
 void addPosterior(int X, int Y) {
 	int i, Xp, Yp;
 	double f;
-	forward(sequence[X], sequence[Y], lens[X], lens[Y]);
-	backward(sequence[X], sequence[Y], lens[X], lens[Y]);
+
+	// First build the map of aln_position -> sequence_position
 	Xp = Yp = 0;
 	for (i = 0; i < alen; i++) {
 		if (align[X][i] == 20) {
@@ -187,66 +265,53 @@ void addPosterior(int X, int Y) {
 		}
 		Xpos[i] = Xp;
 		Ypos[i] = Yp;
-
 	}
 
-	for (i = 0; i < alen; i++) {
-		if (WEIGHTING == 0) {
-			sample[i]++;
-		} else {
-			sample[i]++;	// SW: Hack
-//			sample[i] += pairWeights[X][Y];
+	int *posX = Xpos, *posY = Ypos;
+	if (!DO_APPROX) {
+		forward(sequence[X], sequence[Y], lens[X], lens[Y]);
+		backward(sequence[X], sequence[Y], lens[X], lens[Y]);
+	} else {
+		if (RunMakePosteriors(X, Y)) {
+			//		printf("Done flip on %d,%d\n",X,Y);
+			posX = Ypos;
+			posY = Xpos; // Flip the sequences if they're flipped in the pairHMM
+			i = X;
+			X = Y;
+			Y = i;
 		}
+	}
+
+
+
+	for (i = 0; i < alen; i++) {
+#if DEBUG_PP
+		printf("[%d,%d : %d]",X,Y,i);
+#endif
+		sample[i]++;
 		switch (states[i]) {
 		case -1:
 			posterior[i] += 0.0;
-			if (WEIGHTING == 0) {
-				sample[i]--;
-			} else {
-				sample[i]--;
-//				sample[i] -= pairWeights[X][Y];
-			}
+			sample[i]--;
 			printf("%s ", "NA");
 			break;
 		case 0:
-			if (ADD != 0) {
-				f = exp(Mfmatrix[Xpos[i]][Ypos[i]] + Mbmatrix[Xpos[i]][Ypos[i]]
-						- pxy);
-			} else {
-				f = Mfmatrix[Xpos[i]][Ypos[i]] + Mbmatrix[Xpos[i]][Ypos[i]]
-						- pxy;
-			}
+			f = exp(Mfmatrix[posX[i]][posY[i]] + Mbmatrix[posX[i]][posY[i]] - pxy);
 			//printf("%d %d : %f %f %f\n",Xpos[i],Ypos[i],Mfmatrix[Xpos[i]][Ypos[i]],Mbmatrix[Xpos[i]][Ypos[i]],Mfmatrix[Xpos[i]][Ypos[i]]+Mbmatrix[Xpos[i]][Ypos[i]]-pxy);
 			printf("%f ", f);
-//			if (WEIGHTING != 0)
-//				f *= pairWeights[X][Y];
 			posterior[i] += f;
 
 			break;
 		case 1:
-			if (ADD != 0) {
-				f = exp(Xfmatrix[Xpos[i]][Ypos[i]] + Xbmatrix[Xpos[i]][Ypos[i]]
-						- pxy);
-			} else {
-				f = Xfmatrix[Xpos[i]][Ypos[i]] + Xbmatrix[Xpos[i]][Ypos[i]]
-						- pxy;
-			}
-			printf("%f ", f);
-//			if (WEIGHTING != 0)
-//				f *= pairWeights[X][Y];
+			f = exp(Xfmatrix[posX[i]][posY[i]] + Xbmatrix[posX[i]][posY[i]] - pxy);
+			printf("%s ", "NA");
+//			printf("%f ", f);
 			posterior[i] += f;
 			break;
 		case 2:
-			if (ADD != 0) {
-				f = exp(Yfmatrix[Xpos[i]][Ypos[i]] + Ybmatrix[Xpos[i]][Ypos[i]]
-						- pxy);
-			} else {
-				f = Yfmatrix[Xpos[i]][Ypos[i]] + Ybmatrix[Xpos[i]][Ypos[i]]
-						- pxy;
-			}
-			printf("%f ", f);
-//			if (WEIGHTING != 0)
-//				f *= pairWeights[X][Y];
+			f = exp(Yfmatrix[posX[i]][posY[i]] + Ybmatrix[posX[i]][posY[i]] - pxy);
+			printf("%s ", "NA");
+//			printf("%f ", f);
 			posterior[i] += f;
 			break;
 		default:
@@ -256,7 +321,7 @@ void addPosterior(int X, int Y) {
 
 	}
 	printf("\n");
-
+	posX = NULL; posY = NULL;
 }
 
 void initHMM(int len){
@@ -826,3 +891,467 @@ void backward(char *seqX,char *seqY,int lenX,int lenY){
   
   
 }
+
+////////////////////////////////// Approximate PP routines //////////////////////////////////////
+
+void BuildBounds(int X, int Y, bool Flip) {
+	assert(lens[X] <= lens[Y]);
+	int diff = lens[Y] - lens[X];
+	int *posX = Xpos, *posY = Ypos;
+	if(Flip) { posX = Ypos; posY = Xpos; }
+
+	// Initialise maximal bounds
+	for (int i = 0; i < lens[X] + 1; i++) {
+		leftBounds[i] = 0; rightBounds[i] = lens[Y];
+	}
+	// Check the biggest difference in position between the sequences
+	int lastX = -1, lastY = -1, max = 0, countX = 0, countY = 0;
+//	printf("\n--Alntracker--\n");
+	for(int i = 0; i < alen; i++) {
+//		printf("[i=%d] %d : %d\n",i,posX[i],posY[i]);
+		if(posX[i] > lastX) {
+			if(countX > max) { max = countX; }
+//			if(lastX == 0) { printf("\nOPENING %d", countX); }
+			lastX = posX[i];
+			countX = 0;
+		}
+		if(posY[i] > lastY) {
+			if(countY > max) { max = countY; }
+			lastY = posY[i];
+			countY = 0;
+		}
+		countX ++;
+		countY ++;
+	}
+	if(countX > max) { max = countX; } // Finish by checking the end of the sequence
+	if(countY > max) { max = countY; }
+
+	//	Update using the MSA
+	for (int i = 0 ; i < alen; i++) {
+		leftBounds[posX[i]] = my_max(leftBounds[posX[i]],posY[i] - BOUND_SIZE- max);
+		rightBounds[posX[i]] = my_min(rightBounds[posX[i]],posY[i] + BOUND_SIZE + max);
+	}
+/*
+	if (X == 6 && Y == 0) {
+		printf("\n---------- X=%d,Y=%d : Bounds %d (max: %d)-------------", X,Y, BOUND_SIZE,max);
+		for (int i = 0; i < lens[X]; i++) {
+			printf("\n[%d (Aln:%d)] : %d (Aln:%d) - %d (Aln:%d)", i, posX[i], leftBounds[i],posY[leftBounds[i]],rightBounds[i],posY[rightBounds[i]]);
+		}
+	}
+*/
+	posX = NULL; posY = NULL;
+}
+
+void approx_forward(char *seqX, char *seqY, int lenX, int lenY) {
+	int i, j;
+	double tmp;
+
+	int skip_count = 0, total_count = 0;
+
+	assert(lenX <= lenY);
+
+	// Initialize Forward Probabilities
+
+	Xfmatrix[0][0] = -FLT_MAX;
+	Yfmatrix[0][0] = -FLT_MAX;
+#ifndef NCSTATE
+	Mfmatrix[0][0] = 0;
+#else
+	Mfmatrix[0][0] = -FLT_MAX;
+	XNfmatrix[0] = 0;
+	XCfmatrix[0] = 0;
+#endif
+
+#ifdef LONG
+	XLfmatrix[0][0] = -FLT_MAX;
+	YLfmatrix[0][0] = -FLT_MAX;
+#endif
+	for (i = -1; i < alen + 1; i++) {
+		Xfmatrix[-1][i] = -FLT_MAX;
+		Yfmatrix[-1][i] = -FLT_MAX;
+		Mfmatrix[-1][i] = -FLT_MAX;
+		Xfmatrix[i][-1] = -FLT_MAX;
+		Yfmatrix[i][-1] = -FLT_MAX;
+		Mfmatrix[i][-1] = -FLT_MAX;
+#ifdef LONG
+		XLfmatrix[-1][i] = -FLT_MAX;
+		YLfmatrix[-1][i] = -FLT_MAX;
+		XLfmatrix[i][-1] = -FLT_MAX;
+		YLfmatrix[i][-1] = -FLT_MAX;
+#endif
+	}
+
+	Mfmatrix[1][1] = initDistribDefault[0]
+			+ emitPairsDefault[(int) (seqX[0])][(int) (seqY[0])];
+	Xfmatrix[1][0] = initDistribDefault[1] + emitSingleDefault[(int) (seqX[0])];
+	Yfmatrix[0][1] = initDistribDefault[2] + emitSingleDefault[(int) (seqY[0])];
+#ifdef LONG
+	XLfmatrix[1][0] = initDistribDefault[3]
+			+ emitSingleDefault[(int) (seqX[0])];
+	YLfmatrix[0][1] = initDistribDefault[4]
+			+ emitSingleDefault[(int) (seqY[0])];
+#endif
+
+#ifdef NCSTATE
+	XNfmatrix[1] = initDistribDefault[NUMSTATE - 2]
+			+ emitSingleDefault[(int) (seqX[0])];
+	YNfmatrix[1] = initDistribDefault[NUMSTATE - 1]
+			+ emitSingleDefault[(int) (seqY[0])];
+
+	// Calculate XNfmatrix[i] and YNfmatrix[j]
+	for (i = 2; i <= lenX; i++) {
+		XNfmatrix[i] = XNfmatrix[i - 1] + selfN
+				+ emitSingleDefault[(int) (seqX[i - 1])];
+	}
+	for (j = 2; j <= lenY; j++) {
+		YNfmatrix[j] = YNfmatrix[j - 1] + selfN
+				+ emitSingleDefault[(int) (seqY[j - 1])];
+	}
+#endif
+
+	for (i = 0; i <= lenX; i++) {
+		for (j = 0; j <= lenY; j++) {
+			if (i == 0 && j == 0) {
+				continue;
+			}
+			total_count++;
+			if (j < leftBounds[i - 1] || j > rightBounds[i - 1]) {
+//				printf("\nSkipping[%d,%d]",i-1,j-1);
+				Mfmatrix[i][j] = Xfmatrix[i][j] = Yfmatrix[i][j] = -FLT_MAX;
+#ifdef LONG
+				XLfmatrix[i][j] = YLfmatrix[i][j] = -FLT_MAX;
+#endif
+				skip_count++;
+				continue;
+			}
+
+			// Calculate Mfmatrix[i][j]
+			if (i != 0 && j != 0) {
+				if (i != 1 || j != 1) {
+
+					tmp = selfM + Mfmatrix[i - 1][j - 1];
+					addLogProb(Yfmatrix[i-1][j-1]+XYtoM,tmp);
+					addLogProb(Xfmatrix[i-1][j-1]+XYtoM,tmp);
+#ifdef LONG
+					addLogProb(YLfmatrix[i-1][j-1]+XYLtoM,tmp);
+					addLogProb(XLfmatrix[i-1][j-1]+XYLtoM,tmp);
+#endif
+#ifdef NCSTATE
+					if (i == 1 && j > 1) {
+						addLogProb(YNfmatrix[j-1]+NtoM,tmp);
+					}
+					if (j == 1 && i > 1) {
+						addLogProb(XNfmatrix[i-1]+NtoM,tmp);
+					}
+#endif
+					assert((int) (seqX[i - 1]) >= 0 && (int) (seqX[i - 1]) < 20);
+					assert((int) (seqY[j - 1]) >= 0 && (int) (seqY[j - 1]) < 20);
+					Mfmatrix[i][j]
+							= tmp
+									+ emitPairsDefault[(int) (seqX[i - 1])][(int) (seqY[j
+											- 1])];
+				}
+			} else {
+				Mfmatrix[i][j] = -FLT_MAX;
+			}
+			// Calculate Xfmatrix[i][j]
+			if (i != 0) {
+				if (i != 1 || j != 0) {
+					tmp = MtoXY + Mfmatrix[i - 1][j];
+					addLogProb(selfXY + Xfmatrix[i-1][j],tmp);
+					assert((int) (seqX[i - 1]) >= 0 && (int) (seqX[i - 1]) < 20);
+					Xfmatrix[i][j] = tmp
+							+ emitSingleDefault[(int) (seqX[i - 1])];
+				}
+			} else {
+				Xfmatrix[i][j] = -FLT_MAX;
+			}
+			// Calculate Yfmatrix[i][j]
+			if (j != 0) {
+				if (i != 0 || j != 1) {
+					tmp = MtoXY + Mfmatrix[i][j - 1];
+					addLogProb(selfXY + Yfmatrix[i][j-1],tmp);
+					assert((int) (seqY[j - 1]) >= 0 && (int) (seqY[j - 1]) < 20);
+					Yfmatrix[i][j] = tmp
+							+ emitSingleDefault[(int) (seqY[j - 1])];
+				}
+			} else {
+				Yfmatrix[i][j] = -FLT_MAX;
+			}
+#ifdef LONG
+			// Calculate XLfmatrix[i][j]
+			if (i != 0) {
+				if (i != 1 || j != 0) {
+					tmp = MtoXYL + Mfmatrix[i - 1][j];
+					addLogProb(selfXYL + XLfmatrix[i-1][j],tmp);
+					assert((int) (seqX[i - 1]) >= 0 && (int) (seqX[i - 1]) < 20);
+					XLfmatrix[i][j] = tmp
+							+ emitSingleDefault[(int) (seqX[i - 1])];
+				}
+			} else {
+				XLfmatrix[i][j] = -FLT_MAX;
+			}
+			// Calculate YLfmatrix[i][j]
+			if (j != 0) {
+				if (i != 0 || j != 1) {
+					tmp = MtoXYL + Mfmatrix[i][j - 1];
+					addLogProb(selfXYL + YLfmatrix[i][j-1],tmp);
+					assert((int) (seqY[j - 1]) >= 0 && (int) (seqY[j - 1]) < 20);
+					YLfmatrix[i][j] = tmp
+							+ emitSingleDefault[(int) (seqY[j - 1])];
+				}
+			} else {
+				YLfmatrix[i][j] = -FLT_MAX;
+			}
+#endif
+
+			//fprintf(stderr,"%d %d : %f %f %f %f %f\n",i,j,Mfmatrix[i][j],Xfmatrix[i][j],Yfmatrix[i][j],XLfmatrix[i][j],YLfmatrix[i][j]);
+
+		}
+	}
+
+#ifdef NCSTATE
+	// Calculate XCfmatrix[i] and YCfmatrix[j]
+	XCfmatrix[0] = -FLT_MAX;
+	for (i = 1; i <= lenX; i++) {
+		tmp = selfC + XCfmatrix[i - 1];
+		addLogProb(MtoC+Mfmatrix[i-1][lenY],tmp);
+		//fprintf(stderr,"Xf %d :%f\n",i,tmp);
+		XCfmatrix[i] = tmp + emitSingleDefault[(int) (seqX[i - 1])];
+		//fprintf(stderr,"Xf %d :%f\n",i,XCfmatrix[i]);
+	}
+	YCfmatrix[0] = -FLT_MAX;
+	for (j = 1; j <= lenY; j++) {
+		tmp = selfC + YCfmatrix[j - 1];
+		addLogProb(MtoC+Mfmatrix[lenX][j-1],tmp);
+		//fprintf(stderr,"Yf %d :%f\n",j,tmp);
+		YCfmatrix[j] = tmp + emitSingleDefault[(int) (seqY[j - 1])];
+		//fprintf(stderr,"Yf %d :%f\n",j,YCfmatrix[j]);
+	}
+#endif
+
+#ifdef ENDTRANS
+	pxy = Mfmatrix[lenX][lenY] + initDistribDefault[0];
+	addLogProb(Yfmatrix[lenX][lenY]+initDistribDefault[1],pxy);
+	addLogProb(Xfmatrix[lenX][lenY]+initDistribDefault[2],pxy);
+#ifdef LONG
+	addLogProb(YLfmatrix[lenX][lenY]+initDistribDefault[3],pxy);
+	addLogProb(XLfmatrix[lenX][lenY]+initDistribDefault[4],pxy);
+#endif
+	//fprintf(stderr,"pxy = %f\n",pxy);
+#ifdef NCSTATE
+	addLogProb(YCfmatrix[lenY]+initDistribDefault[NUMSTATE-2],pxy);
+	addLogProb(XCfmatrix[lenX]+initDistribDefault[NUMSTATE-1],pxy);
+#endif
+#else
+	pxy = Mfmatrix[lenX][lenY];
+	addLogProb(Yfmatrix[lenX][lenY],pxy);
+	addLogProb(Xfmatrix[lenX][lenY],pxy);
+#ifdef LONG
+	addLogProb(YLfmatrix[lenX][lenY],pxy);
+	addLogProb(XLfmatrix[lenX][lenY],pxy);
+#endif
+	//fprintf(stderr,"pxy = %f\n",pxy);
+#ifdef NCSTATE
+	addLogProb(YCfmatrix[lenY],pxy);
+	addLogProb(XCfmatrix[lenX],pxy);
+#endif
+#endif
+
+//	printf("pxy = %f\n", pxy);
+//	printf("skip_count = %d / %d = %f", skip_count, total_count, (double) skip_count / (double) total_count);
+	//for(i=0;i<=lenY;i++){
+	//fprintf(stderr,"%d : %f %f %f\n",i,Mfmatrix[2][i],Xfmatrix[2][i],Yfmatrix[2][i]);
+	//}
+	// exit(-1);
+}
+
+void approx_backward(char *seqX, char *seqY, int lenX, int lenY) {
+	int i, j;
+	double tmp;
+
+	assert(lenX <= lenY);
+
+#ifdef ENDTRANS
+	Mbmatrix[lenX][lenY] = initDistribDefault[0];
+	Xbmatrix[lenX][lenY] = initDistribDefault[1];
+	Ybmatrix[lenX][lenY] = initDistribDefault[2];
+#ifdef LONG
+	XLbmatrix[lenX][lenY] = initDistribDefault[3];
+	YLbmatrix[lenX][lenY] = initDistribDefault[4];
+#endif
+#ifdef NCSTATE
+	YCbmatrix[lenY] = initDistribDefault[NUMSTATE - 2];
+	XCbmatrix[lenX] = initDistribDefault[NUMSTATE - 1];
+#endif
+#else
+	Mbmatrix[lenX][lenY] = 0;
+	Xbmatrix[lenX][lenY] = 0;
+	Ybmatrix[lenX][lenY] = 0;
+#ifdef LONG
+	XLbmatrix[lenX][lenY] = 0;
+	YLbmatrix[lenX][lenY] = 0;
+#endif
+#ifdef NCSTATE
+	YCbmatrix[lenY] = 0;
+	XCbmatrix[lenX] = 0;
+#endif
+#endif
+
+	for (i = lenX; i >= 0; i--) {
+		Mbmatrix[i][lenY + 1] = -FLT_MAX;
+		Xbmatrix[i][lenY + 1] = -FLT_MAX;
+		Ybmatrix[i][lenY + 1] = -FLT_MAX;
+#ifdef LONG
+		XLbmatrix[i][lenY + 1] = -FLT_MAX;
+		YLbmatrix[i][lenY + 1] = -FLT_MAX;
+#endif
+	}
+
+	for (j = lenY; j >= 0; j--) {
+		Mbmatrix[lenX + 1][j] = -FLT_MAX;
+		Xbmatrix[lenX + 1][j] = -FLT_MAX;
+		Ybmatrix[lenX + 1][j] = -FLT_MAX;
+#ifdef LONG
+		XLbmatrix[lenX + 1][j] = -FLT_MAX;
+		YLbmatrix[lenX + 1][j] = -FLT_MAX;
+#endif
+
+	}
+
+#ifdef NCSTATE
+	// Calculate XCbmatrix[i] and YCbmatrix[j]
+	for (i = lenX - 1; i >= 0; i--) {
+		XCbmatrix[i] = selfC + XCbmatrix[i + 1]
+				+ emitSingleDefault[(int) (seqX[i])];
+
+		//fprintf(stderr,"Xb %d :%f\n",i,XCbmatrix[i]);
+	}
+	for (j = lenY - 1; j >= 0; j--) {
+		YCbmatrix[j] = selfC + YCbmatrix[j + 1]
+				+ emitSingleDefault[(int) (seqY[j])];
+		//fprintf(stderr,"Xb %d :%f\n",j,YCbmatrix[j]);
+	}
+#endif
+
+	for (i = lenX; i >= 0; i--) {
+		for (j = lenY; j >= 0; j--) {
+			if (i == lenX && j == lenY) {
+				continue;
+			}
+			// The approximate bit
+			if (j < leftBounds[i - 1] || j > rightBounds[i - 1]) {
+				Mbmatrix[i][j] = Xbmatrix[i][j] = Ybmatrix[i][j] = -FLT_MAX;
+#ifdef LONG
+				XLbmatrix[i][j] = YLbmatrix[i][j] = -FLT_MAX;
+#endif
+				continue;
+			}
+			// Calculate Mbmatrix[i][j]
+			tmp = -FLT_MAX;
+			if (i != lenX && j != lenY) {
+				tmp = selfM
+						+ emitPairsDefault[(int) (seqX[i])][(int) (seqY[j])]
+						+ Mbmatrix[i + 1][j + 1];
+			}
+
+			if (i != lenX) {
+				addLogProb(Xbmatrix[i+1][j]+emitSingleDefault[(int)(seqX[i])]+MtoXY,tmp);
+#ifdef LONG
+				addLogProb(XLbmatrix[i+1][j]+emitSingleDefault[(int)(seqX[i])]+MtoXYL,tmp);
+#endif
+			}
+
+			if (j != lenY) {
+				addLogProb(Ybmatrix[i][j+1]+emitSingleDefault[(int)(seqY[j])]+MtoXY,tmp);
+#ifdef LONG
+				addLogProb(YLbmatrix[i][j+1]+emitSingleDefault[(int)(seqY[j])]+MtoXYL,tmp);
+#endif
+			}
+
+#ifdef NCSTATE
+			if (i == lenX && j < lenY) {
+				addLogProb(YCbmatrix[j+1]+emitSingleDefault[(int)(seqY[j])]+MtoC,tmp);
+			}
+			if (j == lenY && i < lenX) {
+				addLogProb(XCbmatrix[i+1]+emitSingleDefault[(int)(seqX[i])]+MtoC,tmp);
+			}
+#endif
+
+			Mbmatrix[i][j] = tmp;
+
+			// Calculate Xbmatrix[i][j]
+			tmp = -FLT_MAX;
+			if (i != lenX && j != lenY) {
+				tmp = XYtoM
+						+ emitPairsDefault[(int) (seqX[i])][(int) (seqY[j])]
+						+ Mbmatrix[i + 1][j + 1];
+			}
+			if (i != lenX) {
+				addLogProb(selfXY + Xbmatrix[i+1][j] + emitSingleDefault[(int)seqX[i]],tmp);
+			}
+
+			Xbmatrix[i][j] = tmp;
+			// Calculate Ybmatrix[i][j]
+			tmp = -FLT_MAX;
+			if (i != lenX && j != lenY) {
+				tmp = XYtoM + emitPairsDefault[(int) seqX[i]][(int) seqY[j]]
+						+ Mbmatrix[i + 1][j + 1];
+			}
+			if (j != lenY) {
+				addLogProb(selfXY + Ybmatrix[i][j+1] + emitSingleDefault[(int)seqY[j]],tmp);
+			}
+
+			Ybmatrix[i][j] = tmp;
+
+#ifdef LONG
+			// Calculate XLbmatrix[i][j]
+			tmp = -FLT_MAX;
+			if (i != lenX && j != lenY) {
+				tmp = XYLtoM
+						+ emitPairsDefault[(int) (seqX[i])][(int) (seqY[j])]
+						+ Mbmatrix[i + 1][j + 1];
+			}
+			if (i != lenX) {
+				addLogProb(selfXYL + XLbmatrix[i+1][j] + emitSingleDefault[(int)seqX[i]],tmp);
+			}
+
+			XLbmatrix[i][j] = tmp;
+			// Calculate YLbmatrix[i][j]
+			tmp = -FLT_MAX;
+			if (i != lenX && j != lenY) {
+				tmp = XYLtoM + emitPairsDefault[(int) seqX[i]][(int) seqY[j]]
+						+ Mbmatrix[i + 1][j + 1];
+			}
+			if (j != lenY) {
+				addLogProb(selfXYL + YLbmatrix[i][j+1] + emitSingleDefault[(int)seqY[j]],tmp);
+			}
+
+			YLbmatrix[i][j] = tmp;
+#endif
+			//fprintf(stderr,"%d %d: %f %f %f %f %f\n",i,j,Mbmatrix[i][j],Xbmatrix[i][j],Ybmatrix[i][j],XLbmatrix[i][j],YLbmatrix[i][j]);
+		}
+	}
+
+#ifdef NCSTATE
+	// Calculate XNbmatrix[i] and YNbmatrix[j]
+	XNbmatrix[lenX] = -FLT_MAX;
+	for (i = lenX - 1; i >= 1; i--) {
+		tmp = selfN + XNbmatrix[i + 1] + emitSingleDefault[(int) (seqX[i])];
+		//fprintf(stderr,"Xb %d :%f\n",i,tmp);
+		addLogProb(NtoM+Mbmatrix[i+1][0]+emitSingleDefault[(int)(seqX[i])],tmp);
+		XNbmatrix[i] = tmp;
+		//fprintf(stderr,"Xb %d :%f\n",i,XNbmatrix[i]);
+	}
+	YNbmatrix[lenY] = -FLT_MAX;
+	for (j = lenY - 1; j >= 1; j--) {
+		tmp = selfN + YNbmatrix[j + 1] + emitSingleDefault[(int) (seqY[j])];
+		//fprintf(stderr,"Yb %d :%f\n",j,tmp);
+		addLogProb(NtoM+Mbmatrix[0][j+1] + emitSingleDefault[(int)(seqY[j])],tmp);
+		YNbmatrix[j] = tmp;
+		//fprintf(stderr,"Yb %d :%f\n",j,YNbmatrix[j]);
+	}
+#endif
+
+}
+
