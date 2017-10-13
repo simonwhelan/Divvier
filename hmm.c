@@ -1015,18 +1015,18 @@ void approx_forward(char *seqX, char *seqY, int lenX, int lenY) {
 				continue;
 			}
 			total_count++;
-			if (j < leftBounds[i - 1] || j > rightBounds[i - 1]) {
-//				printf("\nSkipping[%d,%d]",i-1,j-1);
-				Mfmatrix[i][j] = Xfmatrix[i][j] = Yfmatrix[i][j] = -FLT_MAX;
-#ifdef LONG
-				XLfmatrix[i][j] = YLfmatrix[i][j] = -FLT_MAX;
-#endif
-				skip_count++;
-				continue;
-			}
 
 			// Calculate Mfmatrix[i][j]
 			if (i != 0 && j != 0) {
+				if (j < leftBounds[i - 1] || j > rightBounds[i - 1]) {
+	//				printf("\nSkipping[%d,%d]",i-1,j-1);
+					Mfmatrix[i][j] = Xfmatrix[i][j] = Yfmatrix[i][j] = -FLT_MAX;
+	#ifdef LONG
+					XLfmatrix[i][j] = YLfmatrix[i][j] = -FLT_MAX;
+	#endif
+					skip_count++;
+					continue;
+				}
 				if (i != 1 || j != 1) {
 
 					tmp = selfM + Mfmatrix[i - 1][j - 1];
@@ -1240,12 +1240,14 @@ void approx_backward(char *seqX, char *seqY, int lenX, int lenY) {
 				continue;
 			}
 			// The approximate bit
+			if( i != 0 && j != 0) {
 			if (j < leftBounds[i - 1] || j > rightBounds[i - 1]) {
-				Mbmatrix[i][j] = Xbmatrix[i][j] = Ybmatrix[i][j] = -FLT_MAX;
+					Mbmatrix[i][j] = Xbmatrix[i][j] = Ybmatrix[i][j] = -FLT_MAX;
 #ifdef LONG
-				XLbmatrix[i][j] = YLbmatrix[i][j] = -FLT_MAX;
+					XLbmatrix[i][j] = YLbmatrix[i][j] = -FLT_MAX;
 #endif
-				continue;
+					continue;
+				}
 			}
 			// Calculate Mbmatrix[i][j]
 			tmp = -FLT_MAX;
