@@ -50,12 +50,17 @@ int main(int argc, char *argv[]) {
 	for(int i = 0; i < Nseq ; i++) {
 		names.push_back(zorro_names[i]);
 		in_seq.push_back(zorro_raw_seq[i]);
-//		cout << "\nName["<<i<<"]: " << names[i] << "\n : " << zorro_raw_seq[i] << " : "<< flush;
+		cout << "\nName["<<i<<"]: " << names[i] << "\n : " << zorro_raw_seq[i] << " : "<< flush;
 	}
 
 	// Initialise the Clustering program
 	CCluster::Instance()->AddNames(names);
+
+	cout << "\nMaking tree: " << flush;
+
 	CCluster::Instance()->AddTree(MakeTree(names,in_seq));
+
+	cout << "\nCalculating posteriors" << flush;
 
 	// Get the posteriors, either through computation or through HMM calcs
 	GetPosteriors(fileIn + suffixPP);
@@ -177,7 +182,9 @@ string MakeTree(vector <string> n, vector <string> s) {
 }
 
 double AAJCdist(double p) {
-	return -(19.0/20.0) * log(1 - ( (20.0/19.0) * p) );
+	double val = 1 - ( (20.0/19.0) * p);
+	if(val < DBL_EPSILON) { return BIG_NUMBER; }
+	return -(19.0/20.0) * log(val);
 }
 
 double GetPercentDiff(string seq1, string seq2) {
@@ -188,6 +195,7 @@ double GetPercentDiff(string seq1, string seq2) {
 		total ++;
 		if(seq1[i] != seq2[i]) { diff ++; }
 	}
+	if(total == 0) { return 1.0; }
 	return (double) diff / (double) total;
 }
 
