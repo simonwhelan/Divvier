@@ -43,7 +43,9 @@ EXTERN double selfC;
 EXTERN double emitSingleDefault[20];
 EXTERN double emitPairsDefault[20][20];
 
-
+EXTERN double *zorro_posterior;
 
 void initHMM(int len);
+void calc_prep(int len);
 void calc_posterior(int len);
+void getSinglePosterior(int X, int Y);			// Calculate the posterior and store it in double * posterior

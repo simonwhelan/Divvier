@@ -14,9 +14,10 @@ int readSeq(char *inFile);
 void error(char *fmt, ... );
 
 EXTERN int Nseq;
-EXTERN char **align;
-EXTERN char **sequence;
-EXTERN char **names;
+EXTERN char **zorro_raw_seq;
+EXTERN char **zorro_align;
+EXTERN char **zorro_sequence;
+EXTERN char **zorro_names;
 EXTERN int *lens;
 EXTERN int alen;
 EXTERN double TOT_DIST;

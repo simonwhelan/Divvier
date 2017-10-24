@@ -130,7 +130,7 @@ double *YCbmatrix;
 
 double pxy;
 
-double *posterior;
+double *zorro_posterior;
 int *sample;
 int *Xpos;
 int *Ypos;
@@ -156,11 +156,9 @@ int BOUND_SIZE;							// The active one
 int BOUND_ATTEMPTS = 3;					// Number of attempts at bounded prob before aborting and doing full calc
 double bound_error_threshold = 0.005;	// Acceptable probability on pairHMM edge; this has the greatest effect on PP stability (0.0001 seem very stable)
 /////////////////////////////////////////////////////////////////
-
-
-void calc_posterior(int len) {
-	int i, j;
-	posterior = (double *) (malloc((len) * sizeof(double)));
+void calc_prep(int len) {
+	int i;
+	zorro_posterior = (double *) (malloc((len) * sizeof(double)));
 	sample = (int *) (malloc((len) * sizeof(int)));
 	Xpos = (int *) (malloc((len) * sizeof(int)));
 	Ypos = (int *) (malloc((len) * sizeof(int)));
@@ -170,9 +168,13 @@ void calc_posterior(int len) {
 	leftBounds = (int *) malloc((len) * sizeof(int));
 	rightBounds = (int *) malloc((len) * sizeof(int));
 	for (i = 0; i < len; i++) {
-		posterior[i] = 0.0;
-		sample[i] = 0;
+		zorro_posterior[i] = 0.0;
 	}
+}
+
+void calc_posterior(int len) {
+	int i ,j;
+	calc_prep(len);
 	TOT_DIST = 0.0;
 	for (i = 0; i < Nseq; i++) {
 		for (j = i + 1; j < Nseq; j++) {
@@ -217,8 +219,8 @@ bool MakePosteriors(int X, int Y, bool Flip) {
 	//	printf("\nDoing posterior %d %d\n", X, Y); fflush(stdout);
 	// Build the bounds and run the pairHMM
 	BuildBounds(X, Y, Flip);
-	approx_forward(sequence[X], sequence[Y], lens[X], lens[Y]);
-	approx_backward(sequence[X], sequence[Y], lens[X], lens[Y]);
+	approx_forward(zorro_sequence[X], zorro_sequence[Y], lens[X], lens[Y]);
+	approx_backward(zorro_sequence[X], zorro_sequence[Y], lens[X], lens[Y]);
 
 	// Goes through the sequence and checks there isn't much probability mass on the non-edge bounds
 	for (i = 1; i <= lens[X]; i++) {
@@ -239,6 +241,16 @@ bool MakePosteriors(int X, int Y, bool Flip) {
 	return true;
 }
 
+// Modified version of addPosterior
+void getSinglePosterior(int X, int Y) {
+	// Initialise the posterior to zero
+	for (int i = 0; i < alen; i++) {
+		zorro_posterior[i] = 0.0;
+	}
+	// Normal call
+	addPosterior(X, Y);
+}
+
 #define DEBUG_PP 0
 void addPosterior(int X, int Y) {
 	int i, Xp, Yp;
@@ -247,8 +259,8 @@ void addPosterior(int X, int Y) {
 	// First build the map of aln_position -> sequence_position
 	Xp = Yp = 0;
 	for (i = 0; i < alen; i++) {
-		if (align[X][i] == 20) {
-			if (align[Y][i] == 20) {
+		if (zorro_align[X][i] == 20) {
+			if (zorro_align[Y][i] == 20) {
 				states[i] = -1;
 			} else {
 				Yp++;
@@ -256,7 +268,7 @@ void addPosterior(int X, int Y) {
 			}
 		} else {
 			Xp++;
-			if (align[Y][i] == 20) {
+			if (zorro_align[Y][i] == 20) {
 				states[i] = 1;
 			} else {
 				states[i] = 0;
@@ -269,8 +281,8 @@ void addPosterior(int X, int Y) {
 
 	int *posX = Xpos, *posY = Ypos;
 	if (!DO_APPROX) {
-		forward(sequence[X], sequence[Y], lens[X], lens[Y]);
-		backward(sequence[X], sequence[Y], lens[X], lens[Y]);
+		forward(zorro_sequence[X], zorro_sequence[Y], lens[X], lens[Y]);
+		backward(zorro_sequence[X], zorro_sequence[Y], lens[X], lens[Y]);
 	} else {
 		if (RunMakePosteriors(X, Y)) {
 			//		printf("Done flip on %d,%d\n",X,Y);
@@ -291,28 +303,28 @@ void addPosterior(int X, int Y) {
 		sample[i]++;
 		switch (states[i]) {
 		case -1:
-			posterior[i] += 0.0;
+			zorro_posterior[i] += 0.0;
 			sample[i]--;
-			printf("%s ", "NA");
+//			printf("%s ", "NA");
 			break;
 		case 0:
 			f = exp(Mfmatrix[posX[i]][posY[i]] + Mbmatrix[posX[i]][posY[i]] - pxy);
 			//printf("%d %d : %f %f %f\n",Xpos[i],Ypos[i],Mfmatrix[Xpos[i]][Ypos[i]],Mbmatrix[Xpos[i]][Ypos[i]],Mfmatrix[Xpos[i]][Ypos[i]]+Mbmatrix[Xpos[i]][Ypos[i]]-pxy);
-			printf("%f ", f);
-			posterior[i] += f;
+//			printf("%f ", f);
+			zorro_posterior[i] += f;
 
 			break;
 		case 1:
 			f = exp(Xfmatrix[posX[i]][posY[i]] + Xbmatrix[posX[i]][posY[i]] - pxy);
-			printf("%s ", "NA");
+//			printf("%s ", "NA");
 //			printf("%f ", f);
-			posterior[i] += f;
+			zorro_posterior[i] += f;
 			break;
 		case 2:
 			f = exp(Yfmatrix[posX[i]][posY[i]] + Ybmatrix[posX[i]][posY[i]] - pxy);
-			printf("%s ", "NA");
+//			printf("%s ", "NA");
 //			printf("%f ", f);
-			posterior[i] += f;
+			zorro_posterior[i] += f;
 			break;
 		default:
 			error(
@@ -320,7 +332,7 @@ void addPosterior(int X, int Y) {
 		}
 
 	}
-	printf("\n");
+//	printf("\n");
 	posX = NULL; posY = NULL;
 }
 
@@ -896,7 +908,6 @@ void backward(char *seqX,char *seqY,int lenX,int lenY){
 
 void BuildBounds(int X, int Y, bool Flip) {
 	assert(lens[X] <= lens[Y]);
-	int diff = lens[Y] - lens[X];
 	int *posX = Xpos, *posY = Ypos;
 	if(Flip) { posX = Ypos; posY = Xpos; }
 

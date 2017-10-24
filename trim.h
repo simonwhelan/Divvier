@@ -6,3 +6,4 @@
 #define N_PEPT 20
 #define MAX_LABEL_LEN 20
 
+void ReadAndPrepZorro(char *file);			// Initialisation function for zorro. After this the HMMs are ready for RunMakePosteriors(int X, int Y)

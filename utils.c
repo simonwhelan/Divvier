@@ -30,9 +30,10 @@ int pep2num(char c);
 char *removeGaps(char *seq,int len,int *nlen);
 
 int Nseq;
-char **align;
-char **sequence;
-char **names;
+char ** zorro_raw_seq;
+char **zorro_align;
+char **zorro_sequence;
+char **zorro_names;
 int *lens;
 int alen;
 double TOT_DIST;
@@ -57,42 +58,52 @@ void error(char *fmt, ... ) {
 int readSeq(char *inFile){
   char *seq;
   int len,i;
-  int tmp = 0;
+  int tmp = 0, full_seq;
   FILE *fp1,*fp2;
   int pflag;
   if((fp1 = fopen(inFile,"r")) == NULL){
     error((char *)"readSeq: can't open %s for read, exiting\n",inFile);
   }
   // Calculate the number of sequences
-  tmp = 0;
+  full_seq = tmp = 0;
   while(fgets(line,MAX_LINE_LEN,fp1) != NULL){
     if(line[0] == '>'){
       tmp++;
     }
   }
+  full_seq = tmp;
   fclose(fp1);
   
   fp1 = fopen(inFile,"r");
   fp2 = fopen(inFile,"r");
   Nseq = 0;
   alen = -1;
-  align = (char **)(malloc(tmp * sizeof(char *)));
-  sequence = (char **)(malloc(tmp * sizeof(char *)));
-  names = (char **)(malloc(tmp * sizeof(char *)));
+  zorro_raw_seq = (char **)(malloc(tmp * sizeof(char *)));
+  zorro_align = (char **)(malloc(tmp * sizeof(char *)));
+  zorro_sequence = (char **)(malloc(tmp * sizeof(char *)));
+  zorro_names = (char **)(malloc(tmp * sizeof(char *)));
   lens = (int *)(malloc(tmp * sizeof(int)));
   while(1){
-    seq = readNextSeq(inFile,&len,fp1,fp2,&pflag,names+Nseq);
+    seq = readNextSeq(inFile,&len,fp1,fp2,&pflag,zorro_names+Nseq);
     if(len < 0){
       break;
     }
     if(alen == -1){
       alen = len;
+      for(int k = 0 ; k < full_seq ; k++) {
+    	  zorro_align[k] = (char*) ( malloc(alen * sizeof(char*)) );
+    	  zorro_raw_seq[k] = (char*) ( malloc((alen + 1) * sizeof(char*)) );
+      }
     }
     else if(len != alen){
       error("Wrong alignment\n");
     }
     //fprintf(stderr,">seq%d\n%s\n",Nseq,seq);
-    align[Nseq] = seq;
+    // SW hacked so input is cleaner
+    for(int k = 0; k < alen; k++) {
+    	zorro_raw_seq[Nseq][k] = seq[k];
+    	zorro_align[Nseq][k] = pep2num(seq[k]);
+    }
     Nseq++;
   }
   if(tmp != Nseq){
@@ -100,10 +111,10 @@ int readSeq(char *inFile){
   }
   fclose(fp1);
   fclose(fp2);
-  fprintf(stderr,"%d sequences, Length %d\n",Nseq,alen);
-  
+//  fprintf(stderr,"%d sequences, Length %d\n",Nseq,alen);
+
   for(i=0;i<Nseq;i++){
-    sequence[i] = removeGaps(align[i],alen,&lens[i]);
+    zorro_sequence[i] = removeGaps(zorro_align[i],alen,&lens[i]);
     //fprintf(stderr,"%d\n",lens[i]);
   }
 
@@ -247,7 +258,8 @@ char  *readNextSeq(char *inFile,int *LEN,FILE *fp1,FILE *fp2,int *pflag,char **n
       }
       
       if(c!= '>'){
-	seq[counter] = pep2num(c);
+    	  seq[counter] = c;
+//	seq[counter] = pep2num(c);
       }
       else{
 	error((char *)"readNextSeq: %s not in FASTA format\n",inFile);
