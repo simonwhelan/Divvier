@@ -199,6 +199,7 @@ CTree::CTree(const CTree &Tree)	{
 // NoSeq is the number of leaf nodes in the tree
 /////////////////////////////////////////////////////
 void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool AllowFail,bool AllowSubTree) {
+	cout << "\nCreating tree" << flush;
     int i,j,pRight=0,pLeft=0,NextPointer=0,Parent, IntVal = -1, mem_seq, countBra, SubSeq;
     int NoSeq = Names.size();	// Get the number of sequences from the names provide
     double TempBranch[3];		// Stores branch lengths
@@ -262,11 +263,21 @@ void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool A
 	m_bFastCalcOK = false;
 	CheckAlloc = new bool[m_iNoNode+1]; assert(CheckAlloc != NULL);
     for(i=0;i<m_iNoNode+1;i++) { CheckAlloc[i] = false; }
+    // Get new list of names and their index
+    vector<tuple<string ,int >> newNames;
+    i = 0;
+    for(auto name : Names) {
+    	newNames.push_back(tuple<string,int>(name,i++));
+    }
+    // Sort names by length so never a problem with one being a substring of the other
+    sort(newNames.begin(), newNames.end(),[](const auto a, const auto b) {
+    	return get<0>(a).size() > get<0>(b).size();
+    });
 	// Put the numbers into the tree
-    FOR(i,(int)Names.size()) {
-    	int pos = Tree.find(Names[i]);
-    	if(pos == 0) { cout << "\nERROR: Sequence name not found in tree: " << Names[i] << "\n"; exit(-1); }
-    	Tree.replace(pos, Names[i].size(), int_to_string(i + TREE_START));
+    for(auto name : newNames) {
+    	int pos = Tree.find(get<0>(name));
+    	if(pos == string::npos) { cout << "\nERROR: Sequence name not found in tree: " << get<0>(name) << "\n"; exit(-1); }
+    	Tree.replace(pos, get<0>(name).size(), int_to_string(get<1>(name) + TREE_START));
     }
 	FOR(i,(int)Tree.size()) {
 		// Check it's a proper branch length
@@ -279,6 +290,9 @@ void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool A
 		if(isalpha(Tree[i])) { Error("\nError in CTree::CreateTree(): tree has names not passed to the function...\nTree: " + Tree + "\n\n"); }
 	}
 	TempTree = Tree;
+
+	cout << "\nDone init" << flush;
+
     if(SubSeq>2)	{		// Prepare first bit of trNextPointeree if more than two species
         // Loop to allocate nodes pLeft, pRight, Next are the old child0 child1 and parent nodes
 		// these are allocated to m_Node->link[0], [1] and [2] respectively  This is used to some effect

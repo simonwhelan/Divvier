@@ -44,13 +44,13 @@ int main(int argc, char *argv[]) {
 	if(!InRange(threshold,0.0,1.0)) { cout << "\nError: threshold must be in range (0,1)\n"; exit(-1); }
 
 
-	// Read in the sequence using Zorro's method and store it in function scope
+	// Read in the sequence using Zorro's method and store it in global scope here
 	ReadAndPrepZorro(strdup(fileIn.c_str()));
 //	cout << "\nSequences of length " << alen;
 	for(int i = 0; i < Nseq ; i++) {
 		names.push_back(zorro_names[i]);
 		in_seq.push_back(zorro_raw_seq[i]);
-		cout << "\nName["<<i<<"]: " << names[i] << "\n : " << zorro_raw_seq[i] << " : "<< flush;
+//		cout << "\nName["<<i<<"]: " << names[i] << "\n : " << zorro_raw_seq[i] << " : "<< flush;
 	}
 
 	// Initialise the Clustering program
