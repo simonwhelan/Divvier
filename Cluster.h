@@ -41,7 +41,7 @@ private:
 	bool _warningNoInfo = false;
 	// 3. Number threshold
 	double _tightThreshold = 0.95;				// The tight threshold considered guarantee of relationship
-	int _numberPastThreshold = 2;				// Simple number that must pass threshold (extension of single linkage clustering); -1 used mean
+	int _numberPastThreshold = -1;				// Simple number that must pass threshold (extension of single linkage clustering); -1 used mean
 
 	int NoSeq() { return _names.size(); }
 	static CCluster * _cluster;
