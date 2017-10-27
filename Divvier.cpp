@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {
 
-		// DEBUG (2037/38 seem interesting)
-//		i = 2038;
+		// DEBUG (1212[begin - 1471[end] are the structure)
+//		i = 1227;
 		// /DEBUG
 
 		// Get the appropriate PPs
@@ -135,6 +135,10 @@ int main(int argc, char *argv[]) {
 		out << out_seq[i].str() << endl;
 	}
 	out.close();
+
+	if(CCluster::Instance()->Warning()) {
+		cout << "\nWARNING: some columns had no information support or refuting divvying clusters";
+	}
 
 	cout << "\nDone...\n\n";
 

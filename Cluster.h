@@ -28,8 +28,20 @@ public:
 	// clusterMethods: [0] : mean
 	std::vector <std::vector <int> > OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod = 0);		// The result of the clustering
 
+	bool Warning() { return _warningNoInfo; }
+
 private:
 	bool _ready = false;
+	// Some heuristic stuff
+	// 1. Similarity check -- accept columns if there's a certain proportion of the same character
+	bool _doSimilarityCheck = false;			// Whether to do a similarity check rather than use just PPs
+	double _similarityCutOff = 0.8;				// The cutoff used
+	// 2. Accept with no info -- accept a split if there's no PP to support or refute it; important in sparse alignments
+	bool _acceptNoInfo = false;
+	bool _warningNoInfo = false;
+	// 3. Number threshold
+	bool _numberPastThreshold = 3;				// Simple number that must pass threshold (extension of single linkage clustering); -1 used mean
+
 	int NoSeq() { return _names.size(); }
 	static CCluster * _cluster;
 	std::vector <string> _names;
