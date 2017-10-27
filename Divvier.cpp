@@ -72,16 +72,39 @@ int main(int argc, char *argv[]) {
 
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {
+
+		// DEBUG (2037/38 seem interesting)
+//		i = 2038;
+		// /DEBUG
+
 		// Get the appropriate PPs
 		for(auto & x : PP) { x = 0; }	// Initialise the matrix to zero
 		for(auto & pp : allPP) {
 			PP[(Nseq * pp.x()) + pp.y()] = PP[(Nseq * pp.y())+pp.x()] = pp.PP(i);
 		}
 		// Do the divvying
-		vector <vector <int> > divvy = CCluster::Instance()->OutputClusters(PP,threshold);
+
+		string seq;
+		for(int k = 0; k < Nseq; k++) {
+			seq = seq + in_seq[k][i];
+		}
+
+		vector <vector <int> > divvy = CCluster::Instance()->OutputClusters(PP,seq,threshold);
 		// Sort output
-		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
-//		cout << "\n["<<i<<"]: "; for(auto &out : divvy) { cout << " | " << out << flush; }
+//		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
+
+/*
+		cout << "\n["<<i<<"]: "; for(auto &out : divvy) { cout << " | " << out << flush; }
+		cout << "\n["<<i<<"]: "; for(auto &out : divvy) {
+			cout << " | ";
+			for(int s : out) {
+				if(!IsGap(in_seq[s][i])) { cout << in_seq[s][i] << flush; }
+				else { cout << "-"; }
+			}
+
+		}
+		exit(-1);
+*/
 		for(auto & v : divvy) {
 //			cout << "\nWorking with " << v << flush;
 			if(v.size() == 1 && skipSingles) { continue; }

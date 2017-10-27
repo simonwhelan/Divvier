@@ -26,7 +26,7 @@ public:
 
 	// The output information
 	// clusterMethods: [0] : mean
-	std::vector <std::vector <int> > OutputClusters(vector <double> PPs, double threshold, int clusterMethod = 0);		// The result of the clustering
+	std::vector <std::vector <int> > OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod = 0);		// The result of the clustering
 
 private:
 	bool _ready = false;
@@ -40,7 +40,7 @@ private:
 	std::vector <SSplit> _splits;																// The tree splits (not including trivial splits)
 	std::vector <std::vector<std::vector<int> > > _pairs;										// The set of pairs examined to assess each split
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
-	bool TestSplit(int split2Test, double threshold, vector <double> &PPs, int testMethod = 0);	// Function that uses PPs to test a specific split
+	bool TestSplit(int split2Test, string seq, double threshold, vector <double> &PPs, int testMethod = 0);	// Function that uses PPs to test a specific split
 	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > curSplit);			// Adds the _split(split2Add) to the current set of splits
 
 };

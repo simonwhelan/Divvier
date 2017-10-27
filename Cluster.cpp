@@ -112,7 +112,8 @@ vector <vector <int> > CCluster::PairsToCalculate() {
 	return retVec;
 }
 
-vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double threshold, int clusterMethod) {
+//vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double threshold, int clusterMethod) {
+vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod) {
 	assert(_ready);
 	vector <vector <int> > retSplits;
 	vector <int> starter(NoSeq(),0);
@@ -120,7 +121,7 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double thr
 	retSplits.push_back(starter);
 	// Find what clusters to make. Can change this function
 	for(int i = 0 ; i < _splits.size(); i++) {
-		if(!TestSplit(i,threshold,PPs,clusterMethod)) {
+		if(!TestSplit(i,seq, threshold,PPs,clusterMethod)) {
 			retSplits = AddSplit(i,retSplits);
 		}
 	}
@@ -132,15 +133,38 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double thr
 }
 
 // Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
-bool CCluster::TestSplit(int split2Test, double threshold, vector <double> &PPs, int testMethod) {
+bool CCluster::TestSplit(int split2Test, string seq, double threshold, vector <double> &PPs, int testMethod) {
 	double testStat = 0;
+	int count = 0;				// Total number of comparisons made
+	int similarity_count = 0;	// Proportion of pairs sharing same character
+
+	// Start with similarity check
+	for(vector <int>  &v : _pairs[split2Test]) {
+		assert(v.size() == 2);
+		if(seq[v[0]] == '-' || seq[v[1]] == '-') { continue; }
+		count ++;
+		if(seq[v[0]] == seq[v[1]] ) { similarity_count++; }
+	}
+	if((double) similarity_count / (double) count > 0.8) { return true; } 			// High similarity columns always returned true
+
+
 	switch(testMethod) {
 	case 0: 				// Compute the mean and compare to threshold
+//		cout << "\n\nseq: " << seq;
+//		cout << "\nTesting split["<< split2Test << "] " << _splits[split2Test].Left << " | " << _splits[split2Test].Right;
+//		cout << "\nPP";
+		count = 0;
 		for(vector <int>  &v : _pairs[split2Test]) {
 			assert(v.size() == 2);
+			if(seq[v[0]] == '-' || seq[v[1]] == '-') { continue; }
+			count ++;
+//			cout << "  [" << v[0] << "," << v[1] << "]" << PPs[(v[0] * NoSeq()) + v[1]];
 			testStat += PPs[(v[0] * NoSeq()) + v[1]];
 		}
-		if(testStat / (double) _pairs[split2Test].size() + DBL_EPSILON >= threshold) { return true; }
+		if(count == 0) { return true; }		// If there's no PP pairs then no evidence either way and go with MSA
+//		cout << "\nStat= " << testStat / (double) _pairs[split2Test].size() << " cf. new: " << testStat / (double)count;
+//		if(testStat / (double) _pairs[split2Test].size() + DBL_EPSILON >= threshold) { return true; }
+		if(testStat / (double) count + DBL_EPSILON >= threshold) { return true; }
 		break;
 	default:
 		cout << "\nUnknown testMethod passed to CCluster::TestSplit(...)\n"; exit(-1);
