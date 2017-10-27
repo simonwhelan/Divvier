@@ -40,7 +40,8 @@ private:
 	bool _acceptNoInfo = false;
 	bool _warningNoInfo = false;
 	// 3. Number threshold
-	bool _numberPastThreshold = 3;				// Simple number that must pass threshold (extension of single linkage clustering); -1 used mean
+	double _tightThreshold = 0.95;				// The tight threshold considered guarantee of relationship
+	int _numberPastThreshold = 2;				// Simple number that must pass threshold (extension of single linkage clustering); -1 used mean
 
 	int NoSeq() { return _names.size(); }
 	static CCluster * _cluster;
@@ -51,6 +52,7 @@ private:
 	void MakePairs();																			// Calculates the pairs needed for clustering
 	std::vector <SSplit> _splits;																// The tree splits (not including trivial splits)
 	std::vector <std::vector<std::vector<int> > > _pairs;										// The set of pairs examined to assess each split
+	std::vector <vector <int> > _all_pairs;																// All pairs that will be calculated
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
 	bool TestSplit(int split2Test, string seq, double threshold, vector <double> &PPs, int testMethod = 0);	// Function that uses PPs to test a specific split
 	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > curSplit);			// Adds the _split(split2Add) to the current set of splits

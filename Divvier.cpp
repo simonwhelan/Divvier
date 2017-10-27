@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
 	out.close();
 
 	if(CCluster::Instance()->Warning()) {
-		cout << "\nWARNING: some columns had no information support or refuting divvying clusters";
+		cout << "\nWARNING: some columns had no information supporting or refuting divvying clusters";
 	}
 
 	cout << "\nDone...\n\n";

@@ -71,6 +71,22 @@ void CCluster::MakePairs() {
 		big.clear();
 		small.clear();
 	}
+
+	// Now extend the pair sets to maximise coverage
+	_all_pairs = PairsToCalculate();
+	_pairs.clear();
+	vector <vector <int> > workingPairs;
+	for(SSplit &split : _splits) {
+		workingPairs.clear();
+		small = split.Left; big = split.Right;
+		for(auto &pair : _all_pairs) {
+			if((find(small.begin(), small.end(),pair[0]) != small.end() && find(big.begin(), big.end(), pair[1]) != big.end()) ||
+			 (find(small.begin(), small.end(),pair[1]) != small.end() && find(big.begin(), big.end(), pair[0]) != big.end())) {
+				workingPairs.push_back(pair);
+			}
+		}
+		_pairs.push_back(workingPairs);
+	}
 	_ready = true;
 }
 
@@ -80,6 +96,8 @@ vector <vector <int>> CCluster::GetPairs(int splitNum) {
 }
 
 vector <vector <int> > CCluster::PairsToCalculate() {
+
+	if(!_all_pairs.empty()) { return _all_pairs; }
 	vector <vector <int> > retVec;
 	// Get the list. Note only upper 1/2 of diagonal
 	for(auto x : _pairs) {
@@ -179,14 +197,22 @@ bool CCluster::TestSplit(int split2Test, string seq, double threshold, vector <d
 #if DEBUG_TESTSPLIT == 1
 			cout << "  [" << v[0] << seq[v[0]]<< "," << v[1] << seq[v[1]] << "]" << PPs[(v[0] * NoSeq()) + v[1]];
 #endif
-			if(PPs[(v[0] * NoSeq()) + v[1]] > threshold) { numPast++; }
+			if(PPs[(v[0] * NoSeq()) + v[1]] > _tightThreshold) { numPast++; }
 			testStat += PPs[(v[0] * NoSeq()) + v[1]];
 		}
 		if(count == 0) { // If there's no PP pairs then no evidence either way and go with MSA
 			_warningNoInfo = true;
+#if DEBUG_TESTSPLIT == 1
+			cout << "\nCount = 0 return";
+#endif
 			return _acceptNoInfo;
 		}
-		if(numPast > _numberPastThreshold && _numberPastThreshold > 0) { return true; }
+		if(numPast >= _numberPastThreshold && _numberPastThreshold > 0) {
+#if DEBUG_TESTSPLIT == 1
+			cout << "\nThreshold (" << numPast << " / " << _numberPastThreshold << ") return";
+#endif
+			return true;
+		}
 #if DEBUG_TESTSPLIT == 1
 		cout << "\nStat= " << testStat / (double) _pairs[split2Test].size() << " cf. new: " << testStat / (double)count;
 #endif
