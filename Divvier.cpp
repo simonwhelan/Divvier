@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
 	for(int i = 0; i < alen; i++) {
 
 		// DEBUG (1212[begin - 1471[end] are the structure)
-//		i = 1227;
+//		i = 1230;
 		// /DEBUG
 
 		// Get the appropriate PPs
@@ -93,18 +93,18 @@ int main(int argc, char *argv[]) {
 		// Sort output
 //		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
 
-/*
-		cout << "\n["<<i<<"]: "; for(auto &out : divvy) { cout << " | " << out << flush; }
-		cout << "\n["<<i<<"]: "; for(auto &out : divvy) {
-			cout << " | ";
-			for(int s : out) {
-				if(!IsGap(in_seq[s][i])) { cout << in_seq[s][i] << flush; }
-				else { cout << "-"; }
-			}
+		if(false) {
+			cout << "\n["<<i<<"]: "; for(auto &out : divvy) { cout << " | " << out << flush; }
+			cout << "\n["<<i<<"]: "; for(auto &out : divvy) {
+				cout << " | ";
+				for(int s : out) {
+					if(!IsGap(in_seq[s][i])) { cout << in_seq[s][i] << flush; }
+					else { cout << "-"; }
+				}
 
+			}
+			exit(-1);
 		}
-		exit(-1);
-*/
 		for(auto & v : divvy) {
 //			cout << "\nWorking with " << v << flush;
 			if(v.size() == 1 && skipSingles) { continue; }
