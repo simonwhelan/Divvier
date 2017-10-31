@@ -1127,6 +1127,59 @@ void CTree::Unroot()	{
 }
 
 ///////////////////////////////////////////////////////////////////
+// Function that adds a midpoint root
+void CTree::MidpointRoot() {
+	double max_val = 0 , check_val = 0;
+	int max_count = -1, count = 0, x, y;
+	vector <double> pw = GetTreePW();
+	for(auto & d : pw) { if(d >= max_val) { max_val = d; max_count = count;  } count++; }
+	assert(max_count != -1);
+	vector <int> no = GetNodePath(max_count % NoSeq(),max_count / NoSeq());
+	max_val /= 2.0;
+	for(int i = 0 ; i < no.size() - 1; i++) {
+		int br = FindBra(no[i],no[i+1]);
+		if(max_val - B(br) <= 0) {
+
+			break;
+		}
+		max_val -= B(br);
+	}
+
+	cout << "\nGoing " <<  max_count % NoSeq() << " -> " << max_count / NoSeq();
+	cout << "\nLongest dist: " << max_val << "("<<x<<","<<y<<") cf. check: " << check_val;
+
+}
+
+vector <int> CTree::GetNodePath(int To, int From, vector <int> current, bool First) {
+	static bool found;
+	static int x, y;
+	// Initialisation
+	if(First) {
+		x = To; y = From; From = -1;
+		assert(InRange(x,0,NoNode()) && InRange(y,0,NoNode()));
+		found = false;
+	}
+	if(To == y) { current.push_back(To); found = true; }
+	// And traverse
+	for(auto link : m_Node[To]->m_viLink) {
+		if(link == From || found) { continue; }
+		current = GetNodePath(link,To,current,false);
+	}
+	if(found && From != -1) { current.push_back(From); }
+	return current;
+}
+
+
+vector <int> CTree::GetBranchPath(int To, int From, vector <int> current, bool First) {
+	vector <int> nodes = GetNodePath(To,From);
+	current.clear();
+	for(int i = 0 ; i < nodes.size() - 1; i++) {
+		current.push_back(FindBra(nodes[i],nodes[i+1]));
+	}
+	return current;
+}
+
+///////////////////////////////////////////////////////////////////
 // Functions associated with splits on a tree
 void CTree::BuildSplits()	{
 	int i;

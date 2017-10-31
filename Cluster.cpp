@@ -362,7 +362,14 @@ vector <vector <int> > CCluster::AddSplit(int split2Add, vector <vector <int> > 
 	}
 	return retSplit;
 }
+/*
+vector <vector <int> > CCluster::JoinSplit(int split2Join, vector <vector <int> > &curSplit) {
+	vector <vector <int> > retSplit;
+	for(vector <int> &split : curSplit) {
 
+	}
+}
+*/
 // Function that returns the current set of sequences affected by split2get
 bool CCluster::TestSubsplit(int split2test, vector <int> &testSplit) {
 	unordered_set<int> split_set ( testSplit.begin(),testSplit.end() );

@@ -225,6 +225,8 @@ public:
 	bool OutDetail(ostream &os = cout, bool ForceExit = false);	// Detailed output routine (nodes, branches, and tree)
 
 	// Tree modification routines
+	void MidpointRoot();											// Does midpoint rooting
+	void AddRoot(int NodeLeft, double BrLeft, int NodeRight);		// Adds a node between NodeLeft and NodeRight
 	void Unroot();											// If rooted, this function permanently unroots it
 	void OrderNode(int NodeNum = -1,bool DoBraToo = true);	// Orders tree nodes to ascending numerical value (-1 does all)
 	int CutBranch(int Branch,int Link);					// Cuts a branch: returns the branch on priority subtree where they used to be attached -- Subtrees are maintained; Link specifies which one is given priority
@@ -271,7 +273,8 @@ public:
 	void PWDistSub(int NodeTo, int NodeFrom,vector <double> *d,bool DoInternalNodes = false);
 	vector <double> GetPartialTreeDist(vector <int> LeafMap, vector <vector <int> > NBelow);
 	vector <double> GetSubTreePW(vector <int> LeafMap, vector <vector <int> > NBelow, vector <double> BaseDist);
-
+	vector <int> GetBranchPath(int x, int y, vector <int> current = vector<int>(), bool First = true);			// The the ordered list of branches from node y to x
+	vector <int> GetNodePath(int x, int y, vector <int> current = vector<int>(), bool First = true);			// The the ordered list of branches from node y to x
 	// Function to get all of the nodes of a certain depth from a particular node; bool GetLess == true, will also return leaf nodes when they fall within this range
 	vector <int> GetNodesOfDepth(int InitNode, int NodeDepth, bool GetLess, vector <int> *NodesFrom = NULL, vector <int> *NodeCov = NULL, vector <double> *ExtBra = NULL ,int NodeFr = -1, bool First = true);
 	// Centering point functions used for snap
