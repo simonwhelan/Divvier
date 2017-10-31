@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 	vector <stringstream> out_seq(Nseq);
 	vector <double> PP(Nseq*Nseq,1);
 
-	int debug_check = -1;
+	int debug_check = -194;
 
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {
@@ -130,8 +130,9 @@ int main(int argc, char *argv[]) {
 	// Do the output
 
 	string outfile = fileIn + suffixDivvy;
-	replace(outfile,".fas","");
-	outfile += ".fas";
+	// Tidying so output file is more portable
+//	replace(outfile,".fas","");
+//	outfile += ".fas";
 
 	cout << "\nDivvying complete. Outputting to " << outfile;
 	ofstream out(outfile.c_str());

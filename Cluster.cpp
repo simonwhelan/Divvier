@@ -134,6 +134,9 @@ vector <vector <int> > CCluster::PairsToCalculate() {
 }
 
 #define DEBUG_TESTSPLIT 0
+#define UPGMA 1
+
+#if UPGMA == 0
 //vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double threshold, int clusterMethod) {
 vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod) {
 	assert(_ready);
@@ -163,8 +166,69 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq
 	});
 	return retSplits;
 }
+#else
+vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod) {
+	assert(_ready);
+	vector <vector <int> > retSplits;
+	vector <int> starter(NoSeq(),0);
+	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
+	retSplits.push_back(starter);
+	// Find what clusters to make. Can change this function
+
+	// Sort the splits so they're in the right order (Not the place to do this!)
+	sort(_splits.begin(),_splits.end(),[](const auto &a, const auto &b){
+		return my_max(a.Left.size(),a.Right.size()) > my_max(b.Left.size(),b.Right.size());
+	});
+
+	vector <bool> DoSplits(_splits.size(),false);
+	for(int i = 0 ; i < _splits.size(); i++) {
+		if(_splits[i].Left.size() == 1 || _splits[i].Right.size() == 1) { continue; }
+//		cout << "\n["<<i<<"]: " << _splits[i].Left << " | " << _splits[i].Right;
+
+#if DEBUG_TESTSPLIT == 1
+		cout << "\n---\nCurrent splits\n";
+		for(auto &out : retSplits) {
+			cout << " | ";
+			for(auto &v : out) { cout << "[" << v << "]" << seq[v] << " " << flush; }
+		}
+#endif
+		// Debug code to do filtering approach
+//		if(_splits[i].Left.size() != 1 && _splits[i].Right.size() != 1) { continue; }
+
+		if(!TestSplit(i,retSplits, seq, threshold,PPs,clusterMethod)) {
+			DoSplits[i] = true;
+		}
+	}
+	// Add the existing splits
+	for(int i = 0 ; i < _splits.size(); i++) {
+		if(_splits[i].Left.size() == 1 || _splits[i].Right.size() == 1) { continue; }
+		if(DoSplits[i]) {
+			retSplits = AddSplit(i,retSplits);
+		}
+	}
+	// Now check the one sequence splits
+	for(int i = 0 ; i < NoSeq(); i++ ) {
+		if(!TestSplit(i,retSplits, seq, threshold,PPs,clusterMethod)) {
+			retSplits = AddSplit(i,retSplits);
+		}
+	}
 
 
+
+/*
+	cout << "\n---\nCurrent splits\n";
+	for(auto &out : retSplits) {
+		cout << " | ";
+		for(auto &v : out) {cout << "[" << v << "]" << seq[v] << " " << flush;}
+	}
+	exit(-1);*/
+	// Sort them so they're in a nice order; the structure of hte tree splits mean they might not be
+	sort(retSplits.begin(), retSplits.end(),[](const vector<int>& a, const vector<int>& b) {
+	  return a[0] < b[0];
+	});
+	return retSplits;
+}
+#endif
 
 // Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
 bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod) {
@@ -175,10 +239,11 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 	vector <double> splitPPs;	// The PPs for this split
 	int numPast = 0;			// The number past the threshold
 	// New stuff testing only the values in the present split when possible
+	bool testActive = true;
 	vector <int> activeSplit;
 	vector <double> activePPs;
-	for(auto &v : curSplit) {
-		if(TestSubsplit(split2Test,v)) { activeSplit = v; break; }
+	for	(auto &v : curSplit) {
+		if(TestSubsplit(split2Test,v)) {activeSplit = v; break;}
 	}
 	// Check all gaps
 	bool leftOkay = false, rightOkay = false;
@@ -210,8 +275,10 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 		// Normal statistic
 		splitPPs.push_back(PPs[(v[0] * NoSeq()) + v[1]]);
 		// Statistic where only the active split is considered
-		if(find(activeSplit.begin(),activeSplit.end(),v[0]) != activeSplit.end() && find(activeSplit.begin(),activeSplit.end(),v[1]) != activeSplit.end())
-			{ activePPs.push_back(PPs[(v[0] * NoSeq()) + v[1]]); }
+		if(testActive)  {
+			if(find(activeSplit.begin(),activeSplit.end(),v[0]) != activeSplit.end() && find(activeSplit.begin(),activeSplit.end(),v[1]) != activeSplit.end())
+				{ activePPs.push_back(PPs[(v[0] * NoSeq()) + v[1]]); }
+		}
 		// Similarity statistic
 		if(seq[v[0]] == seq[v[1]] ) { similarity_count++; }
 	}
