@@ -47,13 +47,22 @@ inline std::string read_line(std::istream &in) {
 	if(!in.good()) { std::cout << "\nError reading file..."; exit(-1); }
 	return tmp;
 }
+inline bool replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
 
-
-inline void ProgressSpinner(int suffix = -1) {
+inline void ProgressSpinner(int suffix = -1, int suffix_total = -1) {
         static int count = 0;
         static char progress_spinner [] = "/-\\|";
         printf("\r%c",progress_spinner[count++]);
-        if(suffix >= 0) { printf(" %d",suffix); }
+        if(suffix >= 0) {
+        	printf(" %d",suffix);
+        	if(suffix_total >= 0) { cout << " / " << suffix_total; }
+        }
         fflush(stdout);
         if(count == 4) { count = 0; }
 };

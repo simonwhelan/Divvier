@@ -210,8 +210,7 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 		// Normal statistic
 		splitPPs.push_back(PPs[(v[0] * NoSeq()) + v[1]]);
 		// Statistic where only the active split is considered
-		if(find(activeSplit.begin(),activeSplit.end(),v[0]) != activeSplit.end() &&
-			find(activeSplit.begin(),activeSplit.end(),v[1]) != activeSplit.end())
+		if(find(activeSplit.begin(),activeSplit.end(),v[0]) != activeSplit.end() && find(activeSplit.begin(),activeSplit.end(),v[1]) != activeSplit.end())
 			{ activePPs.push_back(PPs[(v[0] * NoSeq()) + v[1]]); }
 		// Similarity statistic
 		if(seq[v[0]] == seq[v[1]] ) { similarity_count++; }
@@ -255,8 +254,7 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 			return true;
 		}
 		// Decision between the active or the normal stat
-//		if(!activePPs.empty()) {
-		if(activePPs.size() >= activeSplit.size() || activePPs.size() > 2) {
+		if(activePPs.size() >= activeSplit.size() - 1 || activePPs.size() > 2) {
 			if( ( (double) Sum(&activePPs) / (double) activePPs.size() ) + DBL_EPSILON >= threshold) { return true; }
 		} else {
 			if((testStat / (double) splitPPs.size()) + DBL_EPSILON >= threshold) { return true; }

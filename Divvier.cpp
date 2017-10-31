@@ -61,21 +61,22 @@ int main(int argc, char *argv[]) {
 	CCluster::Instance()->AddTree(MakeTree(names,in_seq));
 	cout << " ... done" << flush;
 
-	cout << "\nCalculating " << CCluster::Instance()->NoPairs() << "/" <<  ((Nseq*Nseq)-Nseq)/2 << " pairwise posteriors" << flush;
-
 	// Get the posteriors, either through computation or through HMM calcs
 	GetPosteriors(fileIn + suffixPP);
 
-	cout << "\nReady to run" << flush;
+	cout << "\nPerforming divvying along alignment" << endl << flush;
 
 	vector <stringstream> out_seq(Nseq);
 	vector <double> PP(Nseq*Nseq,1);
 
+	int debug_check = -1;
+
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {
+		ProgressSpinner(i+1,alen);
 
 		// DEBUG (1212[begin - 1471[end] are the structure)
-//		i = 1230;
+		if(debug_check>=0) { i = debug_check; }
 		// /DEBUG
 
 		// Get the appropriate PPs
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
 		// Sort output
 //		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
 
-		if(false) {
+		if(debug_check >= 0) {
 			cout << "\n["<<i<<"]: "; for(auto &out : divvy) { cout << " | " << out << flush; }
 			cout << "\n["<<i<<"]: "; for(auto &out : divvy) {
 				cout << " | ";
@@ -126,9 +127,13 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-
 	// Do the output
+
 	string outfile = fileIn + suffixDivvy;
+	replace(outfile,".fas","");
+	outfile += ".fas";
+
+	cout << "\nDivvying complete. Outputting to " << outfile;
 	ofstream out(outfile.c_str());
 	for(int i = 0; i < Nseq ; i++) {
 		out << ">" << names[i] << endl;
@@ -138,10 +143,10 @@ int main(int argc, char *argv[]) {
 	out.close();
 
 	if(CCluster::Instance()->Warning()) {
-		cout << "\nWARNING: some columns had no information supporting or refuting divvying clusters";
+		cout << "\n\nWARNING: some columns had no information supporting or refuting divvying clusters";
 	}
 
-	cout << "\nDone...\n\n";
+	cout << "\n\n";
 
 }
 
@@ -178,9 +183,11 @@ void GetPosteriors(string File) {
 	}
 	// Otherwise calculate the posteriors
 	else {
-//		cout << "\nGetting posteriors " << flush;
+		cout << "\nCalculating " << CCluster::Instance()->NoPairs() << "/" <<  ((Nseq*Nseq)-Nseq)/2 << " pairwise posteriors. This may take some time...\n" << flush;
 		// Do the calculation
+		int count = 0;
 		for(auto & x : CCluster::Instance()->PairsToCalculate()) {
+			ProgressSpinner(++count, CCluster::Instance()->NoPairs());
 			getSinglePosterior(x[0],x[1]);
 //			cout << "\nCalculating (" << x[0] << "," << x[1] << ")" << flush;
 			allPP.push_back(CPostP(x[0],x[1],zorro_posterior,alen));
