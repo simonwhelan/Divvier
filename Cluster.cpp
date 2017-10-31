@@ -255,7 +255,8 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 			return true;
 		}
 		// Decision between the active or the normal stat
-		if(!activePPs.empty()) {
+//		if(!activePPs.empty()) {
+		if(activePPs.size() >= activeSplit.size() || activePPs.size() > 2) {
 			if( ( (double) Sum(&activePPs) / (double) activePPs.size() ) + DBL_EPSILON >= threshold) { return true; }
 		} else {
 			if((testStat / (double) splitPPs.size()) + DBL_EPSILON >= threshold) { return true; }
