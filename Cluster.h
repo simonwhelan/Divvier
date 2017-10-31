@@ -23,7 +23,7 @@ public:
 
 	// Access for the pairs needed for calculation
 	vector <vector <int> > PairsToCalculate();							// Gets the list of pairs to calculate
-
+	int NoPairs() { return _all_pairs.size(); }
 	// The output information
 	// clusterMethods: [0] : mean
 	std::vector <std::vector <int> > OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod = 0);		// The result of the clustering
@@ -46,7 +46,7 @@ private:
 	int NoSeq() { return _names.size(); }
 	static CCluster * _cluster;
 	std::vector <string> _names;
-	int _approxNumber = 10;																		// The number of pairwise comparisons to make for each split
+	int _approxNumber = 15;																		// The number of pairwise comparisons to make for each split
 	CTree _tree;
 	// Values linked to the clustering
 	void MakePairs();																			// Calculates the pairs needed for clustering

@@ -235,14 +235,14 @@ char  *readNextSeq(char *inFile,int *LEN,FILE *fp1,FILE *fp2,int *pflag,char **n
     
     for(i=0;i<strlen(line);i++){
       if(line[i]=='\0' || isspace(line[i])){
-	break;
+    	  if(isspace(line[i])) { line[i] = '\0'; }
+    	  break;
       }
     }
     i--;
     
-    *name = (char *)malloc((i+1)*sizeof(char));
-    strncpy(*name,line+1,i);
-    
+    *name = (char *)malloc((i+2)*sizeof(char));
+    strncpy(*name,line+1,i+1);
  
     counter = 0;
     while(1){

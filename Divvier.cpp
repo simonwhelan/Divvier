@@ -50,19 +50,18 @@ int main(int argc, char *argv[]) {
 	for(int i = 0; i < Nseq ; i++) {
 		names.push_back(zorro_names[i]);
 		in_seq.push_back(zorro_raw_seq[i]);
-//		cout << "\nName["<<i<<"]: " << names[i] << "\n : " << zorro_raw_seq[i] << " : "<< flush;
+//		cout << "\nName["<<i<<"]: " << names[i] << " : " << zorro_names[i] << "\n : " << zorro_raw_seq[i] << " : "<< flush;
 	}
-
 
 
 	// Initialise the Clustering program
 	CCluster::Instance()->AddNames(names);
 
 	cout << "\nMaking tree: " << flush;
-
 	CCluster::Instance()->AddTree(MakeTree(names,in_seq));
+	cout << " ... done" << flush;
 
-	cout << "\nCalculating posteriors" << flush;
+	cout << "\nCalculating " << CCluster::Instance()->NoPairs() << "/" <<  ((Nseq*Nseq)-Nseq)/2 << " pairwise posteriors" << flush;
 
 	// Get the posteriors, either through computation or through HMM calcs
 	GetPosteriors(fileIn + suffixPP);
