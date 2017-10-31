@@ -54,7 +54,9 @@ private:
 	std::vector <std::vector<std::vector<int> > > _pairs;										// The set of pairs examined to assess each split
 	std::vector <vector <int> > _all_pairs;																// All pairs that will be calculated
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
-	bool TestSplit(int split2Test, string seq, double threshold, vector <double> &PPs, int testMethod = 0);	// Function that uses PPs to test a specific split
-	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > curSplit);			// Adds the _split(split2Add) to the current set of splits
+	bool TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod = 0);
+																								// Function that uses PPs to test a specific split
+	bool TestSubsplit(int split2test, vector <int> &testSplit);									// Test whether the subsplit affected by split2get
+	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > &curSplit);			// Adds the _split(split2Add) to the current set of splits
 
 };
