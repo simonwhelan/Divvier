@@ -28,32 +28,28 @@ public:
 		return true;
 	}
 												// Second initiation function that gets the splits from the tree
+	void SetOptions(bool acceptNoInfo, int approxNumber);		// Function for setting the approximation stuff
 	// Access for the pairs needed for calculation
 	vector <vector <int> > PairsToCalculate();							// Gets the list of pairs to calculate
 	int NoPairs() { return _all_pairs.size(); }
 	// The clustering methods
-	std::vector <std::vector <int> > OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod = 0);		// The result of the clustering
+	std::vector <std::vector <int> > OutputClusters(vector <double> PPs, string seq, double threshold);		// The result of the clustering
 
 	// Whether to output a warning or not
 	bool Warning() { return _warningNoInfo; }
 
-//private:
+private:
 	bool _ready = false;
 	// Some heuristic stuff
-	// 0. Whether to do UPGMA
-	bool _doUPGMA = false;
 	// 1. Accept with no info -- accept a split if there's no PP to support or refute it; important in sparse alignments
 	bool _acceptNoInfo = false;
 	bool _warningNoInfo = false;
 	// 2. The number of pairwise comparisons to make for each split
-	int _approxNumber = 15;
+	int _approxNumber = 10;
 	// Variables
 	static CCluster * _cluster;					// Singleton
 	vector <tuple< SSplit, vector <vector <int> > > > _splitPairs;	// The splits and the sets of pairs that define them
-	std::vector <string> _names;				// Sequence names (defines order in tree and MSA
-//	std::vector <SSplit> _splits;				// The tree splits (not including trivial splits)
-//	std::vector <std::vector<std::vector<int> > > _pairs;
-												// The set of pairs used to assess each split
+	std::vector <string> _names;				// Sequence names (defines order in tree and MSA)
 	std::vector <vector <int> > _all_pairs;		// The full set of non-redundant pairs that need to be calculated
 
 	CTree _tree;
@@ -63,15 +59,13 @@ public:
 	// Values linked to the clustering
 	void MakePairs();																			// Calculates the pairs needed for clustering
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
-	bool TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod = 0);
+	bool TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs);
 																								// Function that uses PPs to test a specific split
-	double ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, vector <vector <int> > &curSplit, string seq, vector <double> &PPs, int testMethod = 0);
+	double ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, vector <vector <int> > &curSplit, string seq, vector <double> &PPs);
 	bool TestSubsplit(int split2test, vector <int> &testSplit);									// Test whether the subsplit affected by split2get
 	bool TestSubsplit(SSplit split2test,vector <int> &testSplit);
 	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > &curSplit);			// Adds the _split(split2Add) to the current set of splits
 
 	// Alternative clustering methods
 	void SmartDivisive(vector <vector <int> > &RetClusters, vector <double> &PPs, string seq, double threshold);
-	void PseudoUPGMA(vector <vector <int> > &RetClusters, vector <double> &PPs, string set, double threshold);
-
 };

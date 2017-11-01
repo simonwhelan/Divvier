@@ -30,7 +30,7 @@ vector <string> in_seq;
 
 int main(int argc, char *argv[]) {
 
-	if(argc != 3) { cout << "\n./divvier file threshold"; exit(-1); }
+	if(argc != 3) { cout << "\nStandard usage: ./divvier file threshold\n\n"; exit(-1); }
 
 	string fileIn = "ABCE.linsi.fasta";
 	string suffixPP = ".PP";
@@ -69,46 +69,22 @@ int main(int argc, char *argv[]) {
 	vector <stringstream> out_seq(Nseq);
 	vector <double> PP(Nseq*Nseq,1);
 
-	int debug_check = -499;
-
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {
 		ProgressSpinner(i+1,alen);
-
-		// DEBUG (1212[begin - 1471[end] are the structure)
-		if(debug_check>=0) { i = debug_check; }
-		// /DEBUG
-
 		// Get the appropriate PPs
 		for(auto & x : PP) { x = 0; }	// Initialise the matrix to zero
 		for(auto & pp : allPP) {
 			PP[(Nseq * pp.x()) + pp.y()] = PP[(Nseq * pp.y())+pp.x()] = pp.PP(i);
 		}
 		// Do the divvying
-
-		string seq;
-		for(int k = 0; k < Nseq; k++) {
-			seq = seq + in_seq[k][i];
-		}
-
+		string seq;	// The column characters; needed for gaps
+		for(int k = 0; k < Nseq; k++) { seq = seq + in_seq[k][i]; }
 		vector <vector <int> > divvy = CCluster::Instance()->OutputClusters(PP,seq,threshold);
 		// Sort output
-//		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
+		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
 
-		if(debug_check >= 0) {
-			cout << "\n["<<i<<"]: "; for(auto &out : divvy) { cout << " | " << out << flush; }
-			cout << "\n["<<i<<"]: "; for(auto &out : divvy) {
-				cout << " | ";
-				for(int s : out) {
-					if(!IsGap(in_seq[s][i])) { cout << in_seq[s][i] << flush; }
-					else { cout << "-"; }
-				}
-
-			}
-			exit(-1);
-		}
 		for(auto & v : divvy) {
-//			cout << "\nWorking with " << v << flush;
 			if(v.size() == 1 && skipSingles) { continue; }
 			// Always skip if all gaps
 			int count = 0;
@@ -128,12 +104,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	// Do the output
-
 	string outfile = fileIn + suffixDivvy;
-	// Tidying so output file is more portable
-//	replace(outfile,".fas","");
-//	outfile += ".fas";
-
+	replace(outfile,".fas","");
+	outfile += ".fas";
 	cout << "\nDivvying complete. Outputting to " << outfile;
 	ofstream out(outfile.c_str());
 	for(int i = 0; i < Nseq ; i++) {
@@ -142,11 +115,9 @@ int main(int argc, char *argv[]) {
 		out << out_seq[i].str() << endl;
 	}
 	out.close();
-
 	if(CCluster::Instance()->Warning()) {
 		cout << "\n\nWARNING: some columns had no information supporting or refuting divvying clusters";
 	}
-
 	cout << "\n\n";
 
 }
@@ -190,9 +161,7 @@ void GetPosteriors(string File) {
 		for(auto & x : CCluster::Instance()->PairsToCalculate()) {
 			ProgressSpinner(++count, CCluster::Instance()->NoPairs());
 			getSinglePosterior(x[0],x[1]);
-//			cout << "\nCalculating (" << x[0] << "," << x[1] << ")" << flush;
 			allPP.push_back(CPostP(x[0],x[1],zorro_posterior,alen));
-//			cout << " ... done";
 		}
 		// Do the output
 		ofstream out(File.c_str());

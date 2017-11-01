@@ -261,7 +261,7 @@ void Initialize(double  **delta, FILE *input, int n, POINTERS *trees)
 	  trees[lig].tail=name;
 	  for(col= 1; col <= n; col++)
 	    {
-	      fscanf(input,"%f",&distance);             /* read the distance  */
+	      fscanf(input,"%lf",&distance);             /* read the distance  */
 	      delta[lig][col]=distance;
 	    }
 	}
