@@ -32,6 +32,10 @@ void CCluster::MakePairs() {
 	sort(splits.begin(),splits.end(),[](auto const &a, auto const &b) {
 		return my_max(a.Left.size(),a.Right.size()) > my_max(b.Left.size(),b.Right.size());
 	});
+	for(int i = 0; i < splits.size(); i++) {
+		cout << "\n["<<i<<"] " << splits[i].Left << " | " << splits[i].Right;
+	}
+	cout << "\n";
 	// Distance matrix
 	vector <double> distances = _tree.GetTreePW();
 	vector <int> big, small;
@@ -137,7 +141,7 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq
 	vector <vector <int> > retSplits;
 	// Do appropriate clustering
 	if(_doUPGMA) {
-		UPGMA(retSplits,PPs,seq,threshold);
+		PseudoUPGMA(retSplits,PPs,seq,threshold);
 	} else {
 		SmartDivisive(retSplits,PPs,seq,threshold);
 	}
@@ -169,9 +173,8 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 	}
 }
 
-void CCluster::UPGMA(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
+void CCluster::PseudoUPGMA(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
 	assert(_ready);
-	int root = -1;
 	vector <int> starter(NoSeq(),0);
 	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
 	retSplits.push_back(starter);

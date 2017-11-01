@@ -76,6 +76,6 @@ public:
 
 	// Alternative clustering methods
 	void SmartDivisive(vector <vector <int> > &RetClusters, vector <double> &PPs, string seq, double threshold);
-	void UPGMA(vector <vector <int> > &RetClusters, vector <double> &PPs, string set, double threshold);
+	void PseudoUPGMA(vector <vector <int> > &RetClusters, vector <double> &PPs, string set, double threshold);
 
 };
