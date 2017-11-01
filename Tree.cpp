@@ -40,6 +40,7 @@ CNode::CNode(vector <int> L, vector <int>B, int IntVal)	{
 	assert(L.size() == B.size());
 	switch(L.size())	{
 	case 1: SetNode(L[0],B[0],IntVal); break;
+	case 2: SetNode(L[0],L[1],B[0],B[1],IntVal); break;
 	case 3: SetNode(L[0],L[1],L[2],B[0],B[1],B[2],IntVal); break;
 	default: Error("Unknown type of node in constructor...");
 	}
@@ -155,7 +156,7 @@ CTree::CTree() {
 #if DO_MEMORY_CHECK
         memory_check.CountCTree++;
 #endif
-    m_Node = NULL; m_bReady = false ;m_iOutBra=0; m_ariBraLinks = NULL;
+    m_bReady = false ;m_iOutBra=0;
         m_iNoNode = m_iNoBra = m_iNoOptBra = m_iNoSeq = m_iStartCalc = 0;
         m_bOutName = false; m_bOldTree = false; m_bOutLabel = false; m_bRooted = false; m_iRootNode = -1;
 }
@@ -166,7 +167,7 @@ CTree::CTree(string TREE, vector <string> Names, bool AllowFail, bool AllowSubTr
 #if DO_MEMORY_CHECK
 	memory_check.CountCTree++;
 #endif
-	m_iRootNode = -1; m_bRooted = false; m_bValid = false; m_ariBraLinks = NULL; CreateTree(TREE,Names,true,AllowFail,AllowSubTree); }		// Basic constructor
+	m_iRootNode = -1; m_bRooted = false; m_bValid = false; CreateTree(TREE,Names,true,AllowFail,AllowSubTree); }		// Basic constructor
 
 int IsTreeGap(char Check)	{
 	if(Check!='('&&Check!=')'&&Check!=';'&&Check!=','&&Check!=':')		{ return 1; }
@@ -180,7 +181,7 @@ CTree::CTree(const CTree &Tree)	{
 	memory_check.CountCTree++;
 #endif
 	m_bValid = false;
-    m_Node = NULL; m_bReady = false ;m_iOutBra=false; m_ariBraLinks = NULL; m_bOldTree = Tree.m_bOldTree;
+    m_bReady = false ;m_iOutBra=false; m_bOldTree = Tree.m_bOldTree;
 	m_iNoNode = m_iNoBra = 0;
 	*this = Tree;
 }
@@ -255,8 +256,7 @@ void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool A
 	if(Tree[(int) ( Tree.size() -1 )] != ';') { cout << "\nNo ; at end of tree:\n"<<Tree<<"\n\n"; if(AllowFail) { return; } Error();	 }
 	///////////////////////////////////////////////////////////////////
 	// Initialise
-    m_Node = NULL; m_bReady = false; m_iOutBra=m_bOutName=false; m_bOldTree = false; m_bOutLabel = false;
-	m_ariBraLinks = NULL;
+    m_bReady = false; m_iOutBra=m_bOutName=false; m_bOldTree = false; m_bOutLabel = false;
 	GetMemory(mem_seq);
 	m_viBranchLabels.assign(m_iNoBra,0);
 	m_iStartCalc = 0;
@@ -409,24 +409,19 @@ void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool A
 // Create the branch links. Also works for sub trees
 void CTree::BuildBraLinks(bool Verify)	{
 	int i,j,k;
-	int *BranCount;
+	vector <int> BranCount;
 	// Initialise
-	GET_MEM(BranCount,int,m_iNoBra);
-	if(m_ariBraLinks != NULL) { FOR(i,m_iNoBra) { delete m_ariBraLinks[i]; } delete [] m_ariBraLinks; m_ariBraLinks = NULL; }
-	m_ariBraLinks = new int*[m_iNoBra];
-	FOR(i,m_iNoBra) { m_ariBraLinks[i] = new int[2]; }
-	FOR(i,m_iNoBra) {
-		BranCount[i] = 0;
-		m_ariBraLinks[i][0] = m_ariBraLinks[i][1] = -1;
-	}
+	m_vBraLinks.clear();
+	m_vBraLinks.assign(m_iNoBra,vector<int>(2,-1));
+	BranCount.assign(m_iNoBra,0);
 	// Get assignments
 	FOR(i,m_iNoNode)	{
 		FOR(j,(int)m_Node[i]->m_viBranch.size())	{
 			k = m_Node[i]->m_viBranch[j];
 			if(k == -1) { continue; }
 			assert(k < m_iNoBra && k >= 0);
-			if(m_ariBraLinks[k][0] == -1)	{ m_ariBraLinks[k][0] = i; BranCount[k]++;}
-			else							{ m_ariBraLinks[k][1] = i; BranCount[k]++;}
+			if(m_vBraLinks[k][0] == -1)	{ m_vBraLinks[k][0] = i; BranCount[k]++;}
+			else							{ m_vBraLinks[k][1] = i; BranCount[k]++;}
 	}	}
 	// Verify assignments
 	if(Verify == true) {
@@ -434,8 +429,6 @@ void CTree::BuildBraLinks(bool Verify)	{
 			if(BranCount[i] != 2) { cout << "\nError in BranCount["<<i<<"]: " << BranCount[i] << flush; cout << "\nTree: " << *this << flush; }
 			assert(BranCount[i] == 2);
 	} }
-	// Clear memory
-	DEL_MEM(BranCount);
 }
 
 void CTree::BuildBranches(int NT, int NF)	{
@@ -462,8 +455,8 @@ void CTree::BuildBranches(int NT, int NF)	{
 int CTree::FindBra(int N_i, int N_j)	{
     int i;
 	FOR(i,m_iNoBra)	{
-		if( (m_ariBraLinks[i][0] == N_i && m_ariBraLinks[i][1] == N_j) ||
-			(m_ariBraLinks[i][0] == N_j && m_ariBraLinks[i][1] == N_i) )	{ return i; }
+		if( (m_vBraLinks[i][0] == N_i && m_vBraLinks[i][1] == N_j) ||
+			(m_vBraLinks[i][0] == N_j && m_vBraLinks[i][1] == N_i) )	{ return i; }
 	}
 	return -1;
 }
@@ -492,36 +485,23 @@ void CTree::GetMemory(int NoSeq)	{
 	assert(m_bReady == false);
 	// Adding an extra node to all trees because tree may be rooted
 	int i;
-	assert(m_Node == NULL && m_ariBraLinks == NULL && m_vdBra.empty());
+	assert(m_Node.empty() && m_vBraLinks.empty() && m_vdBra.empty());
     if(m_bRooted) { m_iNoNode = (2*NoSeq)-1; m_iNoBra = (2*NoSeq)-2; m_iNoSeq = NoSeq; }
     else { m_iNoNode = (2*NoSeq)-2; m_iNoBra = (2*NoSeq)-3; m_iNoSeq = NoSeq; }
-	GET_MEM(m_ariBraLinks,int*,m_iNoBra);
-    for(i=0;i<m_iNoBra;i++) {
-		// Do the branch lengths
-		m_vdBra.push_back(0.0);
-		// Do the branch links
-		GET_MEM(m_ariBraLinks[i],int,2);
-		m_ariBraLinks[i][0] = m_ariBraLinks[i][1] = -1;
-	}
+    m_vBraLinks.assign(m_iNoBra,vector<int>(2,-1));
+    m_vdBra.assign(m_iNoBra,0.0);
 	// Set up nodes
     m_iMemNode = m_iNoNode;
-    m_Node = new CNode*[m_iMemNode]; assert(m_Node != NULL);
+    m_Node.assign(m_iMemNode,NULL);
     for(i=0;i<m_iMemNode;i++) { m_Node[i] = NULL; m_Node[i] = new CNode; assert(m_Node[i] != NULL); }
 }
 
 // Clean tree function
 void CTree::CleanTree() {
 	int i;
-    if(m_Node != NULL)	{
-		for(i=0;i<m_iMemNode;i++) { if(m_Node[i] != NULL) { delete m_Node[i]; }}
-		delete [] m_Node;
-		m_Node = NULL;
-	}
-	if(m_ariBraLinks != NULL) {
-	    for(i=0;i<m_iNoBra;i++) { delete [] m_ariBraLinks[i]; }
-	    delete [] m_ariBraLinks;
-		m_ariBraLinks = NULL;
-    }
+    for(i=0;i<m_Node.size();i++) { if(m_Node[i] != NULL) { delete m_Node[i]; }}
+    m_Node.clear();
+    m_vBraLinks.clear();
 	m_vdBra.clear();
 	m_bReady = false; m_iOutBra = m_bOutName = false; m_bFastCalcOK = false; m_bOutLabel = false;
 }
@@ -544,7 +524,7 @@ bool CTree::ValidateTree(bool AllowExit)	{
 			}
 			if(NodeBra(Node,Link) != -1)	{
 				// Check the branches and nodes match
-				FOR(i,2) { if(m_ariBraLinks[NodeBra(Node,Link)][i] == Node || m_ariBraLinks[NodeBra(Node,Link)][i] == -1) { break; }
+				FOR(i,2) { if(m_vBraLinks[NodeBra(Node,Link)][i] == Node || m_vBraLinks[NodeBra(Node,Link)][i] == -1) { break; }
 				if(i == 2) { OutDetail(cout,true); if(AllowExit) { Error("\nTree branches invalid...\n\n"); } return false; } }
 	}	}	}
 #endif
@@ -586,11 +566,11 @@ double CTree::QuadB(int Branch)	{
 	int i,j,NoBra = 1;
 	double  TotalBra = B(Branch);	// Gets branch length (and checks the branch is valid
 	FOR(i,2)	{
-		FOR(j,(int)m_Node[m_ariBraLinks[Branch][i]]->m_viLink.size())	{
-			if(NodeBra(m_ariBraLinks[Branch][i],j) == -1 || NodeLink(m_ariBraLinks[Branch][i],j) == -1) { return -BIG_NUMBER; }
-			if(NodeBra(m_ariBraLinks[Branch][i],j) == Branch) { continue; }
+		FOR(j,(int)m_Node[m_vBraLinks[Branch][i]]->m_viLink.size())	{
+			if(NodeBra(m_vBraLinks[Branch][i],j) == -1 || NodeLink(m_vBraLinks[Branch][i],j) == -1) { return -BIG_NUMBER; }
+			if(NodeBra(m_vBraLinks[Branch][i],j) == Branch) { continue; }
 			NoBra++;
-			TotalBra += B(m_Node[m_ariBraLinks[Branch][i]]->m_viBranch[j]);
+			TotalBra += B(m_Node[m_vBraLinks[Branch][i]]->m_viBranch[j]);
 	}	}
 	return TotalBra / (double) NoBra;
 }
@@ -630,8 +610,8 @@ void CTree::operator=(const CTree & Tree)	{
     // Transfer data
     for(i=0;i<m_iNoBra;i++)  {
 		m_vdBra[i] = Tree.m_vdBra[i];
-		m_ariBraLinks[i][0] = Tree.m_ariBraLinks[i][0];
-		m_ariBraLinks[i][1] = Tree.m_ariBraLinks[i][1];
+		m_vBraLinks[i][0] = Tree.m_vBraLinks[i][0];
+		m_vBraLinks[i][1] = Tree.m_vBraLinks[i][1];
 	}
 	m_vsName = Tree.m_vsName;
 	// Some values regarding models and optimisation
@@ -753,10 +733,10 @@ int CTree::RemoveBraNode(int N)	{
 		assert(j != NoLinks(Link[i]));
 		ReplaceNodeLinkElement(Link[i],j,Link[FlipBin(i)]);
 		ReplaceNodeBraElement(Link[i],j,Bra[0]);
-		m_ariBraLinks[Bra[0]][i] = Link[i];
+		m_vBraLinks[Bra[0]][i] = Link[i];
 	}
 	OrderNode(Link[0]); OrderNode(Link[1]);
-	m_ariBraLinks[Bra[1]][0] = m_ariBraLinks[Bra[1]][1] = -1;
+	m_vBraLinks[Bra[1]][0] = m_vBraLinks[Bra[1]][1] = -1;
 	return Bra[0];
 }
 
@@ -776,7 +756,7 @@ int CTree::CutBranch(int B, int Link)	{
 		else { OrderNode(N); }
 	}
 	// Clean up the branch
-	m_ariBraLinks[B][0] = m_ariBraLinks[B][1] = -1;
+	m_vBraLinks[B][0] = m_vBraLinks[B][1] = -1;
 	return RetVal;
 }
 
@@ -814,7 +794,7 @@ int CTree::RemoveLeafNode(int RemNode)	{
 		else	{ total = B(0) + B(1); }
 		m_Node[0]->m_viLink[0] = 1; m_Node[0]->m_viBranch[0] = 0;
 		m_Node[1]->m_viLink[1] = 0; m_Node[0]->m_viBranch[0] = 0;
-		m_ariBraLinks[0][0] = 0; m_ariBraLinks[0][1] = 1;
+		m_vBraLinks[0][0] = 0; m_vBraLinks[0][1] = 1;
 		SetB(0,total,true,true);
 		m_iNoSeq = 2;
 		m_bFastCalcOK = false;
@@ -829,7 +809,7 @@ int CTree::RemoveLeafNode(int RemNode)	{
 		links[j++] = m_Node[base_node]->m_viLink[i];
 		if(j==2) { // Set the disconnected branch link to null
 			FOR(m,2) {
-				if(m_ariBraLinks[ m_Node[base_node]->m_viBranch[i] ][m] != links[1]) { m_ariBraLinks[ m_Node[base_node]->m_viBranch[i] ][m] = -1; }
+				if(m_vBraLinks[ m_Node[base_node]->m_viBranch[i] ][m] != links[1]) { m_vBraLinks[ m_Node[base_node]->m_viBranch[i] ][m] = -1; }
 			}	}
 		total += B(m_Node[base_node]->m_viBranch[i]);
 	}
@@ -846,7 +826,7 @@ int CTree::RemoveLeafNode(int RemNode)	{
 						k = m_Node[links[0]]->m_viBranch[j];
 						SetB(k,total,true,true);
 						FOR(m,2)	{ // Reassign branch links
-							if(m_ariBraLinks[k][m] == base_node) { m_ariBraLinks[k][m] = links[1]; break; }
+							if(m_vBraLinks[k][m] == base_node) { m_vBraLinks[k][m] = links[1]; break; }
 					}	}
 					else		{
 						assert(k>=0);
@@ -859,7 +839,7 @@ int CTree::RemoveLeafNode(int RemNode)	{
 				k = m_Node[links[0]]->m_viBranch[0];
 				SetB(k,total,true,true);
 				FOR(m,2)	{ // Reassign branch links
-					if(m_ariBraLinks[k][m] == base_node) { m_ariBraLinks[k][m] = links[1]; break; }
+					if(m_vBraLinks[k][m] == base_node) { m_vBraLinks[k][m] = links[1]; break; }
 			}	}
 			else	{
 				m_Node[links[1]]->m_viLink[0] = links[0];
@@ -903,9 +883,9 @@ int CTree::AddSeq(int SNum,int Bra, double Prop)	{
 	assert(m_Node[braN]->m_viLink[0] == SNum && m_Node[braN]->m_viLink[1] == -1 && m_Node[braN]->m_viLink[2] == -1);
 	assert(m_Node[braN]->m_viBranch[0] == leafB);
 	assert(m_Node[braN]->m_viBranch[0] == leafB && m_Node[braN]->m_viBranch[1] != -1 && m_Node[braN]->m_viBranch[2] == -1);
-	inN1 = m_ariBraLinks[Bra][0]; inN2 = m_ariBraLinks[Bra][1];
+	inN1 = m_vBraLinks[Bra][0]; inN2 = m_vBraLinks[Bra][1];
 	assert(IsNode(inN1) && IsNode(inN2));
-	if(inN1 > inN2)  { i = inN1; m_ariBraLinks[Bra][0] = inN1 = inN2; m_ariBraLinks[Bra][1] = inN2 = i; }
+	if(inN1 > inN2)  { i = inN1; m_vBraLinks[Bra][0] = inN1 = inN2; m_vBraLinks[Bra][1] = inN2 = i; }
 
 	// Adjust some branch lengths
 	MulB(Bra,Prop,true,true);
@@ -916,19 +896,19 @@ int CTree::AddSeq(int SNum,int Bra, double Prop)	{
 	// Adjust inN1
 	FOR(i,(int)m_Node[inN1]->m_viLink.size()) { if(m_Node[inN1]->m_viLink[i] == inN2) { break; } } assert(i!=m_Node[inN1]->m_viLink.size());
 	m_Node[inN1]->m_viLink[i] = braN;
-	FOR(j,2) { if(m_ariBraLinks[Bra][j] != inN1) { break; } } assert(j!=2);
-	m_ariBraLinks[Bra][j] = braN;
+	FOR(j,2) { if(m_vBraLinks[Bra][j] != inN1) { break; } } assert(j!=2);
+	m_vBraLinks[Bra][j] = braN;
 	// Adjust inN2
 	FOR(i,(int)m_Node[inN2]->m_viLink.size()) { if(m_Node[inN2]->m_viLink[i] == inN1) { break; } } assert(i!=m_Node[inN2]->m_viLink.size());
 	m_Node[inN2]->m_viLink[i] = braN;
 	m_Node[inN2]->m_viBranch[i] = braB;
-	FOR(j,2) { if(m_ariBraLinks[braB][j] != braN) { break; } } assert(j!=2);
-	m_ariBraLinks[braB][j] = inN2;
+	FOR(j,2) { if(m_vBraLinks[braB][j] != braN) { break; } } assert(j!=2);
+	m_vBraLinks[braB][j] = inN2;
 	// Check node have been assigned correctly
 	okay1 = okay2 = 0;
-	assert(m_ariBraLinks[leafB][0] == SNum && m_ariBraLinks[leafB][1] == braN);
-	assert(m_ariBraLinks[Bra][0] == inN1 && m_ariBraLinks[Bra][1] == braN);
-	okay1 = 0; FOR(i,2) { if(m_ariBraLinks[braB][i] == inN2) { okay1++; } else if(m_ariBraLinks[braB][i] == braN) { okay1++; } }
+	assert(m_vBraLinks[leafB][0] == SNum && m_vBraLinks[leafB][1] == braN);
+	assert(m_vBraLinks[Bra][0] == inN1 && m_vBraLinks[Bra][1] == braN);
+	okay1 = 0; FOR(i,2) { if(m_vBraLinks[braB][i] == inN2) { okay1++; } else if(m_vBraLinks[braB][i] == braN) { okay1++; } }
 	assert(okay1 == 2);
 	okay1 = okay2 = 0;
 	FOR(i,3) { 		assert(IsNode(m_Node[braN]->m_viLink[i]) && IsBra(m_Node[braN]->m_viBranch[i])); }
@@ -961,8 +941,8 @@ bool CTree::IsBra(int Bra)	{
 bool CTree::GoodBra(int Bra)	{
 	int i;
 	FOR(i,2)	{
-		if(m_ariBraLinks[Bra][i] == -1) { return false; }
-		if(GoodNode(m_ariBraLinks[Bra][i]) == false) { return false; }
+		if(m_vBraLinks[Bra][i] == -1) { return false; }
+		if(GoodNode(m_vBraLinks[Bra][i]) == false) { return false; }
 	}
 	return true;
 }
@@ -983,7 +963,7 @@ int CTree::NoLeafLink(int N)	{
 bool CTree::IsCutTree()	{
 	int i;
 	FOR(i,m_iNoBra)	{
-		if(m_ariBraLinks[i][0] == -1 || m_ariBraLinks[i][1] == -1) { return true; }
+		if(m_vBraLinks[i][0] == -1 || m_vBraLinks[i][1] == -1) { return true; }
 	}
 	return false;
 }
@@ -1025,8 +1005,8 @@ int CTree::BranchSets(int BranchNum, vector <int> *Left, vector <int> *Right)	{
 	vector <int> temp, temp2;
 	assert(Left != NULL && Right != NULL && BranchNum < m_iNoBra);
 	BuildBraLinks(false);
-	GetBraSets(m_ariBraLinks[BranchNum][0], m_ariBraLinks[BranchNum][1],Left, true);
-	GetBraSets(m_ariBraLinks[BranchNum][1], m_ariBraLinks[BranchNum][0],Right, true);
+	GetBraSets(m_vBraLinks[BranchNum][0], m_vBraLinks[BranchNum][1],Left, true);
+	GetBraSets(m_vBraLinks[BranchNum][1], m_vBraLinks[BranchNum][0],Right, true);
 	// Sort the nodes
 	if((int)Left->size() > 1) { sort(Left->begin(),Left->end()); }   else if(Left->empty()) { return -1; } else if(Left->at(0) == -1) { return -1; }
 	if((int)Right->size() > 1) { sort(Right->begin(),Right->end()); } else if(Right->empty()) { return -1; } else if(Right->at(0) == -1) { return -1; }
@@ -1076,10 +1056,10 @@ void CTree::OrderNode(int NodeNum, bool DoBraToo)	{
 	}	}	}	}	}
 	if(DoBraToo == true) {	// If need to do branches
 		FOR(i,m_iNoBra)	{
-			if( ( m_ariBraLinks[i][0] > m_ariBraLinks[i][1] && m_ariBraLinks[i][1] != -1) || m_ariBraLinks[i][0] == -1)	{
-				j = m_ariBraLinks[i][0];
-				m_ariBraLinks[i][0] = m_ariBraLinks[i][1];
-				m_ariBraLinks[i][1] = j;
+			if( ( m_vBraLinks[i][0] > m_vBraLinks[i][1] && m_vBraLinks[i][1] != -1) || m_vBraLinks[i][0] == -1)	{
+				j = m_vBraLinks[i][0];
+				m_vBraLinks[i][0] = m_vBraLinks[i][1];
+				m_vBraLinks[i][1] = j;
 }	}	}	}
 
 ///////////////////////////////////////////////////////////////////
@@ -1088,9 +1068,8 @@ void CTree::Unroot()	{
 	if(!IsRooted()) { return; }
 	if(!InRange(m_iRootNode,0,m_iNoNode)) { Error("\nTrying to CTree::Unroot when tree not ready\n\n"); }
 	assert(m_Node[m_iRootNode]->m_NodeType == root);
-	int i,j, branch = NodeBra(m_iRootNode,0), pLeft = NodeLink(m_iRootNode,0), pRight = NodeLink(m_iRootNode,1);
+	int i, branch = NodeBra(m_iRootNode,0), pLeft = NodeLink(m_iRootNode,0), pRight = NodeLink(m_iRootNode,1);
 	int braLeft = NodeBra(m_iRootNode,0), braRight = NodeBra(m_iRootNode,1);
-	CNode ** ppNodeStore;
 	// Correct the branch length and remove the right hand branch
 	m_vdBra[pLeft] = m_vdBra[braLeft] + m_vdBra[braRight];
 	m_vdBra.erase(m_vdBra.begin() + pRight);
@@ -1111,16 +1090,9 @@ void CTree::Unroot()	{
 	}	}
 	assert(i != NoLinks(pRight));
 	// Now remove the redundant node
-	ppNodeStore = new CNode*[m_iNoNode - 1];
-	j = 0; FOR(i,m_iNoNode) {					// Removes the node
-		if(i==m_iRootNode) { continue; }
-		ppNodeStore[j++] = m_Node[i];
-	}
-	for(i=0;i<m_iMemNode;i++) { if(m_Node[i] != NULL) { delete m_Node[i]; }}
-	delete [] m_Node;
+	delete m_Node[m_iRootNode];
+	m_Node.erase(m_Node.begin() + m_iRootNode);
 	m_iMemNode = m_iNoNode - 1;
-	m_Node = new CNode*[m_iMemNode];
-	FOR(i,m_iMemNode) { m_Node[i] = ppNodeStore[i]; } delete [] ppNodeStore;
 	// Finish up the other stuff
 	m_iRootNode = -1; m_bRooted = false; m_iNoNode--; m_iNoBra--;
 	BuildBraLinks(true); // Get the list of branches links
@@ -1129,8 +1101,8 @@ void CTree::Unroot()	{
 ///////////////////////////////////////////////////////////////////
 // Function that adds a midpoint root
 void CTree::MidpointRoot() {
-	double max_val = 0 , check_val = 0;
-	int max_count = -1, count = 0, x, y;
+	double max_val = 0;
+	int max_count = -1, count = 0;
 	vector <double> pw = GetTreePW();
 	for(auto & d : pw) { if(d >= max_val) { max_val = d; max_count = count;  } count++; }
 	assert(max_count != -1);
@@ -1139,15 +1111,30 @@ void CTree::MidpointRoot() {
 	for(int i = 0 ; i < no.size() - 1; i++) {
 		int br = FindBra(no[i],no[i+1]);
 		if(max_val - B(br) <= 0) {
-
+			AddRoot(no[i],max_val,no[i+1]);
 			break;
 		}
 		max_val -= B(br);
 	}
+}
 
-	cout << "\nGoing " <<  max_count % NoSeq() << " -> " << max_count / NoSeq();
-	cout << "\nLongest dist: " << max_val << "("<<x<<","<<y<<") cf. check: " << check_val;
-
+void CTree::AddRoot(int NodeLeft, double BrLeft, int NodeRight) {
+	int BrNumLeft = FindBra(NodeLeft,NodeRight), BrNumRight = m_iNoBra;
+	// Check some conditions
+	assert(BrLeft < B(BrNumLeft)); assert(!m_bRooted); assert(m_iRootNode == -1);
+	// Initialise the other stuff
+	m_iRootNode = m_Node.size(); m_bRooted = true; m_iNoNode++; m_iNoBra++;
+	// Now create the nodes and branches
+	CNode *NewNode; NewNode = new CNode;
+	NewNode->SetNode(NodeLeft,NodeRight,BrNumLeft,BrNumRight,-1);
+	m_Node.push_back(NewNode);
+	m_vdBra.push_back(B(BrNumLeft) - BrLeft);
+	m_vdBra[BrNumLeft] = BrLeft;
+	// Change the attachments in the existing nodes
+	for(auto &val : m_Node[NodeLeft]->m_viLink) { if(val == NodeRight) { val = m_iRootNode; } }
+	for(auto &val : m_Node[NodeRight]->m_viLink) { if(val == NodeLeft) { val = m_iRootNode; } }
+	for(auto &val : m_Node[NodeRight]->m_viBranch) { if(val == BrNumLeft) { val = BrNumRight; } }
+	BuildBraLinks(true); // Get the list of branches links
 }
 
 vector <int> CTree::GetNodePath(int To, int From, vector <int> current, bool First) {
@@ -1411,7 +1398,7 @@ bool CTree::OutDetail(ostream &os, bool ForceExit)	{
 	os << "\nNodes: ";
 	FOR(i,m_iNoNode) { os << "\n\tNode["<<i<<"]: " << *m_Node[i]; }
 	os << "\nBranch: ";
-	FOR(i,m_iNoBra) { os << "\n\tBranch["<<i<<"] links ("  << m_ariBraLinks[i][0] << ":" << m_ariBraLinks[i][1] << "): " << m_vdBra[i]; }
+	FOR(i,m_iNoBra) { os << "\n\tBranch["<<i<<"] links ("  << m_vBraLinks[i][0] << ":" << m_vBraLinks[i][1] << "): " << m_vdBra[i]; }
 	if(ForceExit) { exit(-1); }
 	os << "\nTree: " << *this;
 	return true;
@@ -1550,7 +1537,7 @@ vector <int> CTree::GetNodesOfDepth(int InitNode, int NodeDepth, bool GetLess, v
 		// Find Branch
 		if(ExtBra != NULL)	{
 			FOR(i,m_iNoBra) {
-				if( (m_ariBraLinks[i][0] == InitNode && m_ariBraLinks[i][1] == NodeFr) || (m_ariBraLinks[i][0] == NodeFr && m_ariBraLinks[i][1] == InitNode) )	{
+				if( (m_vBraLinks[i][0] == InitNode && m_vBraLinks[i][1] == NodeFr) || (m_vBraLinks[i][0] == NodeFr && m_vBraLinks[i][1] == InitNode) )	{
 					ExtBra->push_back(m_vdBra[i]); break;
 			}	}
 			if(i == m_iNoBra) { Error("\nCannot find branch in GetNodesOfDepth...\n"); }
@@ -1569,7 +1556,7 @@ vector <int> CTree::GetNodesOfDepth(int InitNode, int NodeDepth, bool GetLess, v
 			// Find Branch
 			if(ExtBra != NULL)	{
 				FOR(i,m_iNoBra) {
-					if( (m_ariBraLinks[i][0] == InitNode && m_ariBraLinks[i][1] == NodeFr) || (m_ariBraLinks[i][0] == NodeFr && m_ariBraLinks[i][1] == InitNode) )	{
+					if( (m_vBraLinks[i][0] == InitNode && m_vBraLinks[i][1] == NodeFr) || (m_vBraLinks[i][0] == NodeFr && m_vBraLinks[i][1] == InitNode) )	{
 						ExtBra->push_back(m_vdBra[i]); break;
 				}	}
 				if(i == m_iNoBra) { Error("\nCannot find branch in GetNodesOfDepth...\n"); }
@@ -1597,7 +1584,7 @@ vector <int> CTree::BranchCP(int CP, int Depth, vector <int> *NodeRem, vector <i
 	// Clean in preparation of new subtree
 	FOR(i,2) {
 		j = 0; if(i==0) { j = 1; }
-		Nodes = GetNodesOfDepth(m_ariBraLinks[CP][i],Depth,true,&temp,&NC,ExtBra,m_ariBraLinks[CP][j]);
+		Nodes = GetNodesOfDepth(m_vBraLinks[CP][i],Depth,true,&temp,&NC,ExtBra,m_vBraLinks[CP][j]);
 		assert(Nodes.size() == temp.size());
 		// Store the nodes for the leafmap and the nodes from for calculating partial likelihoods
 		FOR(j,(int)Nodes.size()) { RetNode.push_back(Nodes[j]); NodeRem->push_back(temp[j]); }
@@ -1818,7 +1805,7 @@ void CTree::BuildOriSubTree(CTree *RetTree, vector <int> LeafMap, vector <int> N
 	// Now copy branches lengths from original tree to RetTree
 	Link.clear(); Link = LeafMap; FOR(i,(int)NCover.size()) { Link.push_back(NCover[i]); }
 	FOR(i,(int)RetTree->m_vdBra.size())	{
-		RetTree->SetB(i,B(FindBra(Link[RetTree->m_ariBraLinks[i][0]],Link[RetTree->m_ariBraLinks[i][1]])),true);
+		RetTree->SetB(i,B(FindBra(Link[RetTree->m_vBraLinks[i][0]],Link[RetTree->m_vBraLinks[i][1]])),true);
 	}
 	RetTree->m_bReady = true;
 }

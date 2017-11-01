@@ -61,13 +61,6 @@ int main(int argc, char *argv[]) {
 	CCluster::Instance()->AddTree(MakeTree(names,in_seq));
 	cout << " ... done" << flush;
 
-	CTree T(MakeTree(names,in_seq),names);
-	cout << "\nTree: " << T;
-	T.MidpointRoot();
-
-	exit(-1);
-
-
 	// Get the posteriors, either through computation or through HMM calcs
 	GetPosteriors(fileIn + suffixPP);
 

@@ -203,8 +203,8 @@ public:
 	double MulB(int Branch, double Value, bool Update = false, bool Rescale = false);		// Multiply branch length Branch by Value
 	double AddB(int Branch, double Value, bool Update = false, bool Rescale = false);		// Add Value to branch length Branch
 	double QuadB(int Branch);																// Get the average value of Branch and the (upto) 4 surrounding branches
-	inline int BraLink(int B, int L) { return m_ariBraLinks[B][L]; }						// Get the L link for branch B
-	inline void ReplaceBraLink(int B,int L,int Val) { m_ariBraLinks[B][L]=Val;};			// Set the L link for branch B to Val; returns Val;
+	inline int BraLink(int B, int L) { return m_vBraLinks[B][L]; }						// Get the L link for branch B
+	inline void ReplaceBraLink(int B,int L,int Val) { m_vBraLinks[B][L]=Val;};			// Set the L link for branch B to Val; returns Val;
 
 	// Node
 	inline int NoLinks(int N)	{ return (int) m_Node[N]->m_viLink.size(); }	// Returns the # links in a node
@@ -298,13 +298,14 @@ private:
     int m_iNoSeq;				// The # of sequences in tree
 	int m_iStartCalc;			// Leaf node from which to start calculations
 	vector <double> m_vdBra;	// The Branch length parameters
-    CNode ** m_Node;			// The nodes in the tree
+	vector <CNode *> m_Node;	// The nodes in the tree
+//    CNode ** m_Node;			// The nodes in the tree
     bool m_bReady;				// Whether tree is ready
     int m_iOutBra;				// Out branch [0=no branches,1=branches,2=branch numbers]
 	int m_bOutName;				// Out Names
 	bool m_bOutLabel;			// Whether to output tree labels or not
 	vector <string> m_vsName;	// The names in the sequence
-    int **m_ariBraLinks;		// the nodes linked to each branch [branch_number][links]
+	vector <vector <int> > m_vBraLinks; // the nodes linked to each branch [branch_number][links]
 	bool m_bOldTree;			// Whether the tree has already been through a round of SNAP
 	bool m_bFastCalcOK;			// Whether the tree is okay for FastCalc computations
 	bool m_bValid;				// Flag to identify whether a valid constructor has been run

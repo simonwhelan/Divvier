@@ -24,6 +24,8 @@ CCluster * CCluster::Instance() {
 // Gets the splits from the tree
 void CCluster::MakePairs() {
 	assert(_tree.NoSeq() == NoSeq());
+	// Now midpoint root the tree
+	_tree.MidpointRoot();
 	// Splits
 	assert(_splits.empty());
 	// All the splits
