@@ -32,10 +32,6 @@ void CCluster::MakePairs() {
 	sort(splits.begin(),splits.end(),[](auto const &a, auto const &b) {
 		return my_max(a.Left.size(),a.Right.size()) > my_max(b.Left.size(),b.Right.size());
 	});
-	for(int i = 0; i < splits.size(); i++) {
-		cout << "\n["<<i<<"] " << splits[i].Left << " | " << splits[i].Right;
-	}
-	cout << "\n";
 	// Distance matrix
 	vector <double> distances = _tree.GetTreePW();
 	vector <int> big, small;

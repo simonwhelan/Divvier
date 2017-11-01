@@ -1173,6 +1173,10 @@ vector <SSplit> CTree::BuildSplits()	{
 	int rootCount = 0;
 	m_vSplits.clear();
 	FOR(i,NoBra()) {
+		// Skip cases where the root leads to a trivial split
+		if((BraLink(i,0) == Root() && BraLink(i,1) < NoSeq()) || (BraLink(i,1) == Root() && BraLink(i,0) < NoSeq())) {
+			continue;
+		}
 		m_vSplits.push_back(GetSplit(i));
 		if(BraLink(i,0) == Root() || BraLink(i,1) == Root()) {
 			if(rootCount ++ == 0) {
