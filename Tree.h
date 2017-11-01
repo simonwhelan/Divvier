@@ -104,7 +104,7 @@ std::vector<int> ordered(std::vector<T> const& values) {
 
 enum ENodeType	{ branch, leaf, root};
 
-struct SSplit{ int BrLabel; vector <int> Left, Right; };
+struct SSplit{ int BrLabel; vector <int> Left, Right; bool rootLeft = false; bool rootRight = false; };
 
 class CNode		{
 public:
@@ -260,12 +260,12 @@ public:
 	bool GoodNode(int Node);	// Is an active node in the tree
 
 	// Tree split-based functions
-	void BuildSplits();									// Build the set of splits associated with a tree. Current implementation always forces the rebuild
+	vector <SSplit> BuildSplits();					// Build the set of splits associated with a tree. Current implementation always forces the rebuild
 	SSplit GetSplit(int Bra);						// Return the split set for branch Bra
-	int BranchSets(int BranchNum, vector <int> *Left, vector <int> *Right);	// Find the sets of leaf sequences that the branch splits
+	int BranchSets(int BranchNum, vector <int> &Left, vector <int> &Right);	// Find the sets of leaf sequences that the branch splits
 	int FindBra(int Node_i, int Node_j);	// Find branch linking Nodes i and j, returns -1 if none
 		// Returns the value of total number in the Left set (i.e. Left = m_ariBraLinks[0] )
-	void GetBraSets(int NTo, int NFr, vector <int> *List, bool First = true);
+	void GetBraSets(int NTo, int NFr, vector <int> &List, bool First = true);
 	void OutSplits(ostream &os = cout);
 	// Functions to get pairwise distances from a tree
 	vector <double> GetTreePW();

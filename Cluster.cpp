@@ -24,15 +24,12 @@ CCluster * CCluster::Instance() {
 // Gets the splits from the tree
 void CCluster::MakePairs() {
 	assert(_tree.NoSeq() == NoSeq());
+	assert(_splitPairs.empty());
 	// Now midpoint root the tree
-	_tree.MidpointRoot();
-	// Splits
-	assert(_splits.empty());
-	// All the splits
-	for(int i = 0; i < _tree.NoBra() ; i++) {
-		_splits.push_back(_tree.GetSplit( i ));
-	}
-	sort(_splits.begin(),_splits.end(),[](auto const &a, auto const &b) {
+	if(_doUPGMA) { _tree.MidpointRoot(); }
+	// Get the splits
+	vector <SSplit> splits = _tree.BuildSplits();
+	sort(splits.begin(),splits.end(),[](auto const &a, auto const &b) {
 		return my_max(a.Left.size(),a.Right.size()) < my_max(b.Left.size(),b.Right.size());
 	});
 	// Distance matrix
@@ -40,7 +37,7 @@ void CCluster::MakePairs() {
 	vector <int> big, small;
 	vector <tuple <int , int , double> > distSet;			// The set of pairwise comparisons (int i, int j) and their distance (double)
 	vector <vector <int> > pairs2add;
-	for(SSplit &split : _splits) {
+	for(SSplit &split : splits) {
 		// Get the full list of pairwise comparisons in the splits
 		if(split.Left.size() > split.Right.size()) {
 			big = split.Left; small = split.Right;
@@ -69,7 +66,7 @@ void CCluster::MakePairs() {
 			big_count[get<1>(distSet[i])]++;
 			if(pairs2add.size() >= _approxNumber) { break; }	// Finish when we have the full list
 		}
-		_pairs.push_back(pairs2add);
+		_splitPairs.push_back( tuple<SSplit ,vector <vector <int> > >(split , pairs2add) );
 		// Clean up
 		pairs2add.clear();
 		distSet.clear();
@@ -79,25 +76,23 @@ void CCluster::MakePairs() {
 
 	// Now extend the pair sets to maximise coverage
 	_all_pairs = PairsToCalculate();
-	_pairs.clear();
 	vector <vector <int> > workingPairs;
-	for(SSplit &split : _splits) {
-		workingPairs.clear();
-		small = split.Left; big = split.Right;
+	for(auto &split : _splitPairs) {
+		get<1>(split).clear();
+		small = get<0>(split).Left; big = get<0>(split).Right;
 		for(auto &pair : _all_pairs) {
 			if((find(small.begin(), small.end(),pair[0]) != small.end() && find(big.begin(), big.end(), pair[1]) != big.end()) ||
 			 (find(small.begin(), small.end(),pair[1]) != small.end() && find(big.begin(), big.end(), pair[0]) != big.end())) {
-				workingPairs.push_back(pair);
+				get<1>(split).push_back(pair);
 			}
 		}
-		_pairs.push_back(workingPairs);
 	}
 	_ready = true;
 }
 
 // Get the set of pairs for testing split numbered splitNum
 vector <vector <int>> CCluster::GetPairs(int splitNum) {
-	return _pairs[splitNum];
+	return get<1>(_splitPairs[splitNum]);
 }
 
 vector <vector <int> > CCluster::PairsToCalculate() {
@@ -105,8 +100,8 @@ vector <vector <int> > CCluster::PairsToCalculate() {
 	if(!_all_pairs.empty()) { return _all_pairs; }
 	vector <vector <int> > retVec;
 	// Get the list. Note only upper 1/2 of diagonal
-	for(auto x : _pairs) {
-		for(auto y : x) {
+	for(auto x : _splitPairs) {
+		for(auto y : get<1>(x)) {
 			if(y[0] > y[1]) {
 				retVec.push_back( vector<int>{y[1],y[0]} );
 			} else {
@@ -136,18 +131,29 @@ vector <vector <int> > CCluster::PairsToCalculate() {
 }
 
 #define DEBUG_TESTSPLIT 0
-#define UPGMA 1
-
-#if UPGMA == 0
 //vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double threshold, int clusterMethod) {
 vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod) {
 	assert(_ready);
 	vector <vector <int> > retSplits;
+	// Do appropriate clustering
+	if(_doUPGMA) {
+		UPGMA(retSplits,PPs,seq,threshold);
+	} else {
+		SmartDivisive(retSplits,PPs,seq,threshold);
+	}
+	// Sort them so they're in a nice order; the structure of hte tree splits mean they might not be
+	sort(retSplits.begin(), retSplits.end(),[](const vector<int>& a, const vector<int>& b) {
+	  return a[0] < b[0];
+	});
+	return retSplits;
+}
+
+void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
 	vector <int> starter(NoSeq(),0);
 	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
 	retSplits.push_back(starter);
 	// Find what clusters to make. Can change this function
-	for(int i = 0 ; i < _splits.size(); i++) {
+	for(int i = 0 ; i < _splitPairs.size(); i++) {
 #if DEBUG_TESTSPLIT == 1
 		cout << "\n---\nCurrent splits\n";
 		for(auto &out : retSplits) {
@@ -157,34 +163,29 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq
 #endif
 		// Debug code to do filtering approach
 //		if(_splits[i].Left.size() != 1 && _splits[i].Right.size() != 1) { continue; }
-
-		if(!TestSplit(i,retSplits, seq, threshold,PPs,clusterMethod)) {
+		if(!TestSplit(i,retSplits, seq, threshold,PPs)) {
 			retSplits = AddSplit(i,retSplits);
 		}
 	}
-	// Sort them so they're in a nice order; the structure of hte tree splits mean they might not be
-	sort(retSplits.begin(), retSplits.end(),[](const vector<int>& a, const vector<int>& b) {
-	  return a[0] < b[0];
-	});
-	return retSplits;
 }
-#else
-vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod) {
+
+void CCluster::UPGMA(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
 	assert(_ready);
-	vector <vector <int> > retSplits;
 	vector <int> starter(NoSeq(),0);
 	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
 	retSplits.push_back(starter);
+
+	cout << "\nTrying UPGMA"; exit(-1);
 	// Find what clusters to make. Can change this function
 
 	// Sort the splits so they're in the right order (Not the place to do this!)
-	sort(_splits.begin(),_splits.end(),[](const auto &a, const auto &b){
-		return my_max(a.Left.size(),a.Right.size()) > my_max(b.Left.size(),b.Right.size());
+	sort(_splitPairs.begin(),_splitPairs.end(),[](const auto &a, const auto &b){
+		return my_max(get<0>(a).Left.size(),get<0>(a).Right.size()) > my_max(get<0>(b).Left.size(),get<0>(b).Right.size());
 	});
 
-	vector <bool> DoSplits(_splits.size(),false);
-	for(int i = 0 ; i < _splits.size(); i++) {
-		if(_splits[i].Left.size() == 1 || _splits[i].Right.size() == 1) { continue; }
+	vector <bool> DoSplits(_splitPairs.size(),false);
+	for(int i = 0 ; i < _splitPairs.size(); i++) {
+		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) { continue; }
 //		cout << "\n["<<i<<"]: " << _splits[i].Left << " | " << _splits[i].Right;
 
 #if DEBUG_TESTSPLIT == 1
@@ -197,20 +198,20 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq
 		// Debug code to do filtering approach
 //		if(_splits[i].Left.size() != 1 && _splits[i].Right.size() != 1) { continue; }
 
-		if(!TestSplit(i,retSplits, seq, threshold,PPs,clusterMethod)) {
+		if(!TestSplit(i,retSplits, seq, threshold,PPs)) {
 			DoSplits[i] = true;
 		}
 	}
 	// Add the existing splits
-	for(int i = 0 ; i < _splits.size(); i++) {
-		if(_splits[i].Left.size() == 1 || _splits[i].Right.size() == 1) { continue; }
+	for(int i = 0 ; i < _splitPairs.size(); i++) {
+		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) { continue; }
 		if(DoSplits[i]) {
 			retSplits = AddSplit(i,retSplits);
 		}
 	}
 	// Now check the one sequence splits
 	for(int i = 0 ; i < NoSeq(); i++ ) {
-		if(!TestSplit(i,retSplits, seq, threshold,PPs,clusterMethod)) {
+		if(!TestSplit(i,retSplits, seq, threshold,PPs)) {
 			retSplits = AddSplit(i,retSplits);
 		}
 	}
@@ -224,13 +225,7 @@ vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq
 		for(auto &v : out) {cout << "[" << v << "]" << seq[v] << " " << flush;}
 	}
 	exit(-1);*/
-	// Sort them so they're in a nice order; the structure of hte tree splits mean they might not be
-	sort(retSplits.begin(), retSplits.end(),[](const vector<int>& a, const vector<int>& b) {
-	  return a[0] < b[0];
-	});
-	return retSplits;
 }
-#endif
 
 // Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
 bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod) {
@@ -249,11 +244,11 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 	}
 	// Check all gaps
 	bool leftOkay = false, rightOkay = false;
-	for(auto  &v : _splits[split2Test].Left) {
+	for(auto  &v : get<0>(_splitPairs[split2Test]).Left) {
 		if(seq[v] == '-') { continue; }
 		leftOkay = true;
 	}
-	for(auto  &v : _splits[split2Test].Right) {
+	for(auto  &v : get<0>(_splitPairs[split2Test]).Right) {
 			if(seq[v] == '-') { continue; }
 			rightOkay = true;
 		}
@@ -271,7 +266,7 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 #endif
 
 	// Collect the PPs
-	for(vector <int>  &v : _pairs[split2Test]) {
+	for(vector <int>  &v : get<1>(_splitPairs[split2Test])) {
 		assert(v.size() == 2);
 		if(seq[v[0]] == '-' || seq[v[1]] == '-') { continue; }
 		// Normal statistic
@@ -348,14 +343,14 @@ vector <vector <int> > CCluster::AddSplit(int split2Add, vector <vector <int> > 
 			continue;
 		}
 		vector <int> newSplit;
-		for(int &left : _splits[split2Add].Left) {
+		for(int &left : get<0>(_splitPairs[split2Add]).Left) {
 			if(find(split.begin(),split.end(),left) != split.end()) { newSplit.push_back(left); }
 //			if(split_set.find(left) != split_set.end()) { newSplit.push_back(left); }
 		}
 		assert(newSplit.size() > 0);
 		retSplit.push_back(newSplit);		// Note: no sorting required because they're pre-sorted
 		newSplit.clear();
-		for(int &right : _splits[split2Add].Right) {
+		for(int &right : get<0>(_splitPairs[split2Add]).Right) {
 			if(find(split.begin(),split.end(),right) != split.end()) { newSplit.push_back(right); }
 //			if(split_set.find(right) != split_set.end()) { newSplit.push_back(right); }
 		}
@@ -376,10 +371,10 @@ vector <vector <int> > CCluster::JoinSplit(int split2Join, vector <vector <int> 
 bool CCluster::TestSubsplit(int split2test, vector <int> &testSplit) {
 	unordered_set<int> split_set ( testSplit.begin(),testSplit.end() );
 	bool inLeft = false, inRight = false;
-	for(int &left : _splits[split2test].Left) {
+	for(int &left : get<0>(_splitPairs[split2test]).Left) {
 		if(split_set.find(left) != split_set.end()) { inLeft = true; break; }
 	}
-	for(int &right : _splits[split2test].Right) {
+	for(int &right : get<0>(_splitPairs[split2test]).Right) {
 		if(split_set.find(right) != split_set.end()) { inRight = true; break; }
 	}
 	if(!inLeft || !inRight) { return false; }

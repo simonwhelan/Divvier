@@ -21,7 +21,12 @@ public:
 	// Initiation
 	bool AddNames(std::vector <string> Names) { if(!_names.empty()) { return false; }_names = Names; return true; };
 												// First initiation function that reads the sequence names
-	bool AddTree(std::string Tree) { if(_tree.NoSeq() > 0) { return false; } _tree = CTree(Tree,_names); MakePairs(); return true; }
+	bool AddTree(std::string Tree) {
+		if(Instance()->_tree.NoSeq() > 0) { return false; }
+		Instance()->_tree = CTree(Tree,_names);
+		MakePairs();
+		return true;
+	}
 												// Second initiation function that gets the splits from the tree
 	// Access for the pairs needed for calculation
 	vector <vector <int> > PairsToCalculate();							// Gets the list of pairs to calculate
@@ -32,9 +37,11 @@ public:
 	// Whether to output a warning or not
 	bool Warning() { return _warningNoInfo; }
 
-private:
+//private:
 	bool _ready = false;
 	// Some heuristic stuff
+	// 0. Whether to do UPGMA
+	bool _doUPGMA = false;
 	// 1. Similarity check -- accept columns if there's a certain proportion of the same character; usually a bad idea
 	bool _doSimilarityCheck = false;			// Whether to do a similarity check rather than use just PPs
 	double _similarityCutOff = 0.8;				// The cutoff used
@@ -48,9 +55,10 @@ private:
 	int _approxNumber = 15;
 	// Variables
 	static CCluster * _cluster;					// Singleton
+	vector <tuple< SSplit, vector <vector <int> > > > _splitPairs;	// The splits and the sets of pairs that define them
 	std::vector <string> _names;				// Sequence names (defines order in tree and MSA
-	std::vector <SSplit> _splits;				// The tree splits (not including trivial splits)
-	std::vector <std::vector<std::vector<int> > > _pairs;
+//	std::vector <SSplit> _splits;				// The tree splits (not including trivial splits)
+//	std::vector <std::vector<std::vector<int> > > _pairs;
 												// The set of pairs used to assess each split
 	std::vector <vector <int> > _all_pairs;		// The full set of non-redundant pairs that need to be calculated
 
@@ -65,5 +73,9 @@ private:
 																								// Function that uses PPs to test a specific split
 	bool TestSubsplit(int split2test, vector <int> &testSplit);									// Test whether the subsplit affected by split2get
 	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > &curSplit);			// Adds the _split(split2Add) to the current set of splits
+
+	// Alternative clustering methods
+	void SmartDivisive(vector <vector <int> > &RetClusters, vector <double> &PPs, string seq, double threshold);
+	void UPGMA(vector <vector <int> > &RetClusters, vector <double> &PPs, string set, double threshold);
 
 };

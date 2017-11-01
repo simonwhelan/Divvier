@@ -1001,33 +1001,33 @@ double CTree::GetTreeLength(bool first, int NTo, int NFr)	{
 	return length;
 }
 
-int CTree::BranchSets(int BranchNum, vector <int> *Left, vector <int> *Right)	{
+int CTree::BranchSets(int BranchNum, vector <int> &Left, vector <int> &Right)	{
 	vector <int> temp, temp2;
-	assert(Left != NULL && Right != NULL && BranchNum < m_iNoBra);
+	assert(BranchNum < m_iNoBra);
 	BuildBraLinks(false);
 	GetBraSets(m_vBraLinks[BranchNum][0], m_vBraLinks[BranchNum][1],Left, true);
 	GetBraSets(m_vBraLinks[BranchNum][1], m_vBraLinks[BranchNum][0],Right, true);
 	// Sort the nodes
-	if((int)Left->size() > 1) { sort(Left->begin(),Left->end()); }   else if(Left->empty()) { return -1; } else if(Left->at(0) == -1) { return -1; }
-	if((int)Right->size() > 1) { sort(Right->begin(),Right->end()); } else if(Right->empty()) { return -1; } else if(Right->at(0) == -1) { return -1; }
+	if((int)Left.size() > 1) { sort(Left.begin(),Left.end()); }   else if(Left.empty()) { return -1; } else if(Left[0] == -1) { return -1; }
+	if((int)Right.size() > 1) { sort(Right.begin(),Right.end()); } else if(Right.empty()) { return -1; } else if(Right[0] == -1) { return -1; }
 	// Ensure the one with sequence 0 in is in the left
-	if(Left->at(0) != 0) { temp = *Left; *Left = *Right; *Right = temp; }
-	if(Left->size() > Right->size()) { return (int)Left->size(); }
+	if(Left[0] != 0) { temp = Left; Left = Right; Right = temp; }
+	if(Left.size() > Right.size()) { return (int)Left.size(); }
 	temp.clear(); temp2.clear();
-	return (int) Right->size();
+	return (int) Right.size();
 }
 
-void CTree::GetBraSets(int NTo, int NFr, vector <int> *List, bool First)	{
+void CTree::GetBraSets(int NTo, int NFr, vector <int> &List, bool First)	{
 	int i;
 	if(NTo == -1) { return; }	// Avoid empty links in the tree
-	if(First == true) { List->clear(); if(NTo < m_iNoSeq) { List->push_back(NTo); } }
+	if(First == true) { List.clear(); if(NTo < m_iNoSeq) { List.push_back(NTo); } }
 	FOR(i,(int)m_Node[NTo]->m_viLink.size())	{
 		// If already seen then continue
 		if(m_Node[NTo]->m_viLink[i] == NFr || m_Node[NTo]->m_viLink[i] == -1) { continue; }
 		// If an internal node then descend
 		else if(m_Node[NTo]->m_viLink[i] >= m_iNoSeq)	{ GetBraSets(m_Node[NTo]->m_viLink[i],NTo,List,false); }
 		// If an external node then store
-		else { List->push_back(m_Node[NTo]->m_viLink[i]); }
+		else { List.push_back(m_Node[NTo]->m_viLink[i]); }
 }	}
 
 // Order the links in a node
@@ -1168,10 +1168,19 @@ vector <int> CTree::GetBranchPath(int To, int From, vector <int> current, bool F
 
 ///////////////////////////////////////////////////////////////////
 // Functions associated with splits on a tree
-void CTree::BuildSplits()	{
+vector <SSplit> CTree::BuildSplits()	{
 	int i;
+	int rootCount = 0;
 	m_vSplits.clear();
-	FOR(i,NoBra()) { m_vSplits.push_back(GetSplit(i)); }
+	FOR(i,NoBra()) {
+		if(BraLink(i,0) == Root() || BraLink(i,1) == Root()) {
+			if(rootCount > 0) { continue; }
+			rootCount ++;
+		}
+		m_vSplits.push_back(GetSplit(i));
+	}
+	assert(!(IsRooted() && rootCount == 0));
+	return m_vSplits;
 }
 
 SSplit CTree::GetSplit(int Bra) {
@@ -1180,7 +1189,23 @@ SSplit CTree::GetSplit(int Bra) {
 	assert(InRange(Bra,0,m_iNoBra));
 	// Get the splits
 	RetSplit.BrLabel = Bra;
-	BranchSets(Bra,&RetSplit.Left,&RetSplit.Right);
+	BranchSets(Bra,RetSplit.Left,RetSplit.Right);
+	if(!m_bRooted) {
+		return RetSplit;
+	}
+	if (Bra == m_Node[m_iRootNode]->m_viBranch[0] || Bra == m_Node[m_iRootNode]->m_viBranch[1]) { return RetSplit; } // Nothing for root
+	SSplit root;
+	BranchSets(m_Node[m_iRootNode]->m_viBranch[0], root.Left, root.Right);
+	bool inLeft = false, inRight = false;
+	// Test whether the root is attached to the left of RetSplit
+	for(auto left : root.Left) {
+		if(find(RetSplit.Left.begin(),RetSplit.Left.end(),left) != RetSplit.Left.end()) {inLeft = true; break;}
+	}
+	for(auto right : root.Right) {
+		if(find(RetSplit.Left.begin(),RetSplit.Left.end(),right) != RetSplit.Left.end()) {inRight = true; break;}
+	}
+	if (inLeft && inRight) { RetSplit.rootLeft = true; } else { RetSplit.rootRight = true; }
+	assert(!(RetSplit.rootLeft && RetSplit.rootRight));
 	return RetSplit;
 }
 
@@ -1202,7 +1227,7 @@ int CTree::GetRFDist(CTree &Tree)	{
 	// Check some entry conditions
 	if(NoSeq() != Tree.NoSeq()) { return -1; }
 	// Get this trees sets
-	FOR(i,NoBra()) { BranchSets(i,&L,&R); L1.push_back(L); Tree.BranchSets(i,&L,&R); L2.push_back(L); }
+	FOR(i,NoBra()) { BranchSets(i,L,R); L1.push_back(L); Tree.BranchSets(i,L,R); L2.push_back(L); }
 	// Get the distance
 	Dist = NoBra();
 	FOR(i,NoBra()) {
@@ -1861,12 +1886,12 @@ bool IsSameTree(CTree *T1, CTree *T2)	{
 	// Get branch sets for T1
 	FOR(i,T1->NoBra())	{
 		L2.clear(); R2.clear();
-		T1->BranchSets(i,&L2,&R2);
+		T1->BranchSets(i,L2,R2);
 		L1.push_back(L2);
 	}
 	// Now compare these branch sets to those of T2
 	FOR(i,T2->NoBra()) {
-		L2.clear(); R2.clear(); T2->BranchSets(i,&L2,&R2); // Get branch sets for Tree 2
+		L2.clear(); R2.clear(); T2->BranchSets(i,L2,R2); // Get branch sets for Tree 2
 		// See if they match T1
 		FOR(j,T1->NoBra()) { if(Compare(&L1[j],&L2)) { break; } }
 		if(j == T1->NoBra()) { return false; }
