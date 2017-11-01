@@ -18,6 +18,9 @@ CCluster * CCluster::Instance() {
 	return _cluster;
 }
 
+#define DEBUG_TESTSPLIT 0
+#define DEBUG_SCOREDETAIL 0
+
 // MakePairs()
 // ---
 // Computes the distance matrix from the tree and uses it to select a set of pairs for testing during divvying
@@ -27,7 +30,7 @@ void CCluster::MakePairs() {
 	assert(_splitPairs.empty());
 	// Now midpoint root the tree
 	if(_doUPGMA) { _tree.MidpointRoot(); }
-	// Get the splits
+	// Get the splits and sort them so the first Nseq are the trivial splits in order and the rest are arranged in order of size
 	vector <SSplit> splits = _tree.BuildSplits();
 	sort(splits.begin(),splits.end(),[](auto const &a, auto const &b) {
 		if(a.Left.size() == 1) { assert(a.Left[0] == 0); return true; }
@@ -132,7 +135,6 @@ vector <vector <int> > CCluster::PairsToCalculate() {
 	return retVec;
 }
 
-#define DEBUG_TESTSPLIT 0
 //vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, double threshold, int clusterMethod) {
 vector < vector <int> > CCluster::OutputClusters(vector <double> PPs, string seq, double threshold, int clusterMethod) {
 	assert(_ready);
@@ -154,10 +156,46 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 	vector <int> starter(NoSeq(),0);
 	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
 	retSplits.push_back(starter);
+	// Greedily remove splits, worst first
+	vector <bool> splitDone(_splitPairs.size(),false);
+#if DEBUG_TESTSPLIT == 1
+	cout << "\n--- Greedy splitting ----";
+#endif
+	while(true) {
+		tuple <int,double> minScore(-1,1.0);
+		// Get score for remaining splits
+		for(int i = 0; i < _splitPairs.size(); i++) {
+			if(splitDone[i]) { continue; }
+			double score = ScoreSplit(_splitPairs[i],retSplits,seq,PPs);
+			if(score + DBL_EPSILON < threshold && score < get<1>(minScore)) {
+				get<0>(minScore) = i; get<1>(minScore) = score;
+			}
+		}
+		if(get<0>(minScore) < 0) { break; } // No minimum score found
+		splitDone[get<0>(minScore)] = true;
+		retSplits = AddSplit(get<0>(minScore),retSplits);
+#if DEBUG_TESTSPLIT == 1
+		cout << "\nAdded split[" << get<0>(minScore) << "] == " << get<1>(minScore) << ": " << get<0>(_splitPairs[get<0>(minScore)]).Left << " | " << get<0>(_splitPairs[get<0>(minScore)]).Right;
+		cout << "\nNew splits ";
+		for(auto &out : retSplits) {
+			cout << " | ";
+			for(auto &v : out) { cout << "[" << v << "]" << seq[v] << " " << flush; }
+		}
+#endif
+	}
+}
+
+
+/*
+// Original fixed order divisive clustering
+void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
+	vector <int> starter(NoSeq(),0);
+	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
+	retSplits.push_back(starter);
 	// Find what clusters to make. Can change this function
 	for(int i = 0 ; i < _splitPairs.size(); i++) {
 #if DEBUG_TESTSPLIT == 1
-		cout << "\n---\nCurrent splits\n";
+		cout << "\n---\nCurrent splits\n" << flush;
 		for(auto &out : retSplits) {
 			cout << " | ";
 			for(auto &v : out) { cout << "[" << v << "]" << seq[v] << " " << flush; }
@@ -170,7 +208,7 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 		}
 	}
 }
-
+*/
 void CCluster::PseudoUPGMA(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
 	assert(_ready);
 	vector <int> starter(NoSeq(),0);
@@ -189,7 +227,6 @@ void CCluster::PseudoUPGMA(vector <vector <int> > &retSplits, vector <double> &P
 			else { assert(get<0>(_splitPairs[i]).Right[0] == i); }
 			continue;
 		}
-
 		if(TestSplit(i,retSplits, seq, threshold,PPs)) {
 			DoSplits[i] = false;
 			// Do the sequences below on the descendant part of split
@@ -199,6 +236,11 @@ void CCluster::PseudoUPGMA(vector <vector <int> > &retSplits, vector <double> &P
 			for(int x : seq2Join) { DoSplits[x] = false; }
 		}
 	}
+	// Process the splits so only they have to be done in order { O(n^2) yuck! }
+	for(int i = 0 ; i < _splitPairs.size(); i++) {
+
+	}
+
 	// Add the existing splits
 	for(int i = 0 ; i < _splitPairs.size(); i++) {
 //		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) { continue; }
@@ -208,8 +250,7 @@ void CCluster::PseudoUPGMA(vector <vector <int> > &retSplits, vector <double> &P
 	}
 }
 
-// Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
-bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod) {
+double CCluster::ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, vector <vector <int> > &curSplit, string seq, vector <double> &PPs, int testMethod) {
 	double testStat = 0;
 	int similarity_count = 0;	// Proportion of pairs sharing same character
 
@@ -221,33 +262,34 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 	vector <int> activeSplit;
 	vector <double> activePPs;
 	for	(auto &v : curSplit) {
-		if(TestSubsplit(split2Test,v)) {activeSplit = v; break;}
+		if(TestSubsplit(get<0>(split2Test),v)) { activeSplit = v; break;}
 	}
 	// Check all gaps
 	bool leftOkay = false, rightOkay = false;
-	for(auto  &v : get<0>(_splitPairs[split2Test]).Left) {
+	for(auto  &v : get<0>(split2Test).Left) {
 		if(seq[v] == '-') { continue; }
 		leftOkay = true;
 	}
-	for(auto  &v : get<0>(_splitPairs[split2Test]).Right) {
+	for(auto  &v : get<0>(split2Test).Right) {
 			if(seq[v] == '-') { continue; }
 			rightOkay = true;
 		}
-	if(!(leftOkay && rightOkay)) { return true;}
+	if(!(leftOkay && rightOkay)) { return 1.0;}
 
-#if DEBUG_TESTSPLIT == 1
+#if DEBUG_SCOREDETAIL == 1
 		cout << "\nseq: " << seq;
-		cout << "\nTesting split["<< split2Test << "] " << get<0>(_splitPairs[split2Test]).Left << " | " << get<0>(_splitPairs[split2Test]).Right;
+		cout << "\nTesting split " << get<0>(split2Test).Left << " | " << get<0>(split2Test).Right;
 		cout << "\nActive split["<<activeSplit.size()<<"]: "<< activeSplit;
+		cout << "\nThere are " << get<1>(split2Test).size() << " pairs";
 		cout << "\nPP";
-		for(vector <int>  &v : get<1>(_splitPairs[split2Test])) {
+		for(vector <int>  &v : get<1>(split2Test)) {
 			if(seq[v[0]] == '-' || seq[v[1]] == '-') { continue; }
 			cout << "  [" << v[0] << seq[v[0]]<< "," << v[1] << seq[v[1]] << "]" << PPs[(v[0] * NoSeq()) + v[1]];
 		}
 #endif
 
 	// Collect the PPs
-	for(vector <int>  &v : get<1>(_splitPairs[split2Test])) {
+	for(vector <int>  &v : get<1>(split2Test)) {
 		assert(v.size() == 2);
 		if(seq[v[0]] == '-' || seq[v[1]] == '-') { continue; }
 		// Normal statistic
@@ -257,61 +299,31 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 			if(find(activeSplit.begin(),activeSplit.end(),v[0]) != activeSplit.end() && find(activeSplit.begin(),activeSplit.end(),v[1]) != activeSplit.end())
 				{ activePPs.push_back(PPs[(v[0] * NoSeq()) + v[1]]); }
 		}
-		// Similarity statistic
-		if(seq[v[0]] == seq[v[1]] ) { similarity_count++; }
 	}
-	if(splitPPs.size() == 0) { // If there's no PP pairs then no evidence either way and go with MSA
+	// If there's no PP pairs then no evidence either way and go with MSA
+	if(splitPPs.size() == 0) {
 		_warningNoInfo = true;
-#if DEBUG_TESTSPLIT == 1
-		cout << "\nCount = 0 return";
-#endif
-		return _acceptNoInfo;
-	}
-	// Similarity check
-	if(_doSimilarityCheck) {
-		if((double) similarity_count / (double) splitPPs.size() > _similarityCutOff) { return true; } 			// High similarity columns always returned true
+		if(_acceptNoInfo) { return 1,0; } else { return 0.0; }
 	}
 
+#if DEBUG_SCOREDETAIL == 1
+	cout << "\nCompleteStat: " << Sum(&splitPPs) / (double)splitPPs.size();
+	if(!activePPs.empty()) { cout << " ; activeStat: " << (double) Sum(&activePPs) / (double) activePPs.size(); }
+#endif
+	// Decision between the active or the normal stat
+	if(activePPs.size() >= activeSplit.size() - 1 || activePPs.size() > 2) {
+		return ( (double) Sum(&activePPs) / (double) activePPs.size() );
+	} else {
+		return (Sum(&splitPPs) / (double) splitPPs.size());
+	}
+	return false;
+}
 
-	switch(testMethod) {
-	case 0: 				// Compute the mean and compare to threshold
-		numPast = 0;
-		for(auto  &v : splitPPs) {
-			if(v > _tightThreshold) { numPast++; }
-			testStat += v;
-		}
-		if(splitPPs.size() == 0) { // If there's no PP pairs then no evidence either way and go with MSA
-			_warningNoInfo = true;
-#if DEBUG_TESTSPLIT == 1
-			cout << "\nCount = 0 return";
-#endif
-			return _acceptNoInfo;
-		}
-#if DEBUG_TESTSPLIT == 1
-		cout << "\nNaiveStat= " << testStat / (double) get<1>(_splitPairs[split2Test]).size() << " ; CorrectStat: " << testStat / (double)splitPPs.size();
-		if(!activePPs.empty()) { cout << " ; activeStat: " << (double) Sum(&activePPs) / (double) activePPs.size(); }
-#endif
 
-		if(numPast >= _numberPastThreshold && _numberPastThreshold > 0) {
-#if DEBUG_TESTSPLIT == 1
-			cout << "\nThreshold (" << numPast << " / " << _numberPastThreshold << ") return";
-#endif
-			return true;
-		}
-		// Decision between the active or the normal stat
-		if(activePPs.size() >= activeSplit.size() - 1 || activePPs.size() > 2) {
-			if( ( (double) Sum(&activePPs) / (double) activePPs.size() ) + DBL_EPSILON >= threshold) { return true; }
-		} else {
-			if((testStat / (double) splitPPs.size()) + DBL_EPSILON >= threshold) { return true; }
-		}
-		break;
-
-	default:
-		cout << "\nUnknown testMethod passed to CCluster::TestSplit(...)\n"; exit(-1);
-	};
-#if DEBUG_TESTSPLIT == 1
-			cout << "\nsplit rejected return";
-#endif
+// Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
+bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod) {
+	double score = ScoreSplit(_splitPairs[split2Test],curSplit,seq,PPs,testMethod);
+	if(score + DBL_EPSILON > threshold) { return true; }
 	return false;
 }
 
@@ -350,12 +362,15 @@ vector <vector <int> > CCluster::JoinSplit(int split2Join, vector <vector <int> 
 */
 // Function that returns the current set of sequences affected by split2get
 bool CCluster::TestSubsplit(int split2test, vector <int> &testSplit) {
+	return TestSubsplit(get<0>(_splitPairs[split2test]),testSplit);
+}
+bool CCluster::TestSubsplit(SSplit split2test,vector <int> &testSplit) {
 	unordered_set<int> split_set ( testSplit.begin(),testSplit.end() );
 	bool inLeft = false, inRight = false;
-	for(int &left : get<0>(_splitPairs[split2test]).Left) {
+	for(int &left : split2test.Left) {
 		if(split_set.find(left) != split_set.end()) { inLeft = true; break; }
 	}
-	for(int &right : get<0>(_splitPairs[split2test]).Right) {
+	for(int &right : split2test.Right) {
 		if(split_set.find(right) != split_set.end()) { inRight = true; break; }
 	}
 	if(!inLeft || !inRight) { return false; }

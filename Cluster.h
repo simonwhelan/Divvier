@@ -41,17 +41,11 @@ public:
 	bool _ready = false;
 	// Some heuristic stuff
 	// 0. Whether to do UPGMA
-	bool _doUPGMA = true;
-	// 1. Similarity check -- accept columns if there's a certain proportion of the same character; usually a bad idea
-	bool _doSimilarityCheck = false;			// Whether to do a similarity check rather than use just PPs
-	double _similarityCutOff = 0.8;				// The cutoff used
-	// 2. Accept with no info -- accept a split if there's no PP to support or refute it; important in sparse alignments
+	bool _doUPGMA = false;
+	// 1. Accept with no info -- accept a split if there's no PP to support or refute it; important in sparse alignments
 	bool _acceptNoInfo = false;
 	bool _warningNoInfo = false;
-	// 3. Number threshold
-	double _tightThreshold = 0.95;				// The tight threshold considered guarantee of relationship
-	int _numberPastThreshold = -1;				// Simple number that must pass threshold (extension of single linkage clustering); -1 used mean
-	// 4. The number of pairwise comparisons to make for each split
+	// 2. The number of pairwise comparisons to make for each split
 	int _approxNumber = 15;
 	// Variables
 	static CCluster * _cluster;					// Singleton
@@ -71,7 +65,9 @@ public:
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
 	bool TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs, int testMethod = 0);
 																								// Function that uses PPs to test a specific split
+	double ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, vector <vector <int> > &curSplit, string seq, vector <double> &PPs, int testMethod = 0);
 	bool TestSubsplit(int split2test, vector <int> &testSplit);									// Test whether the subsplit affected by split2get
+	bool TestSubsplit(SSplit split2test,vector <int> &testSplit);
 	vector <vector <int> > AddSplit(int split2Add, vector <vector <int> > &curSplit);			// Adds the _split(split2Add) to the current set of splits
 
 	// Alternative clustering methods
