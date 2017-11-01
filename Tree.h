@@ -261,7 +261,7 @@ public:
 
 	// Tree split-based functions
 	vector <SSplit> BuildSplits();					// Build the set of splits associated with a tree. Current implementation always forces the rebuild
-	SSplit GetSplit(int Bra);						// Return the split set for branch Bra
+	SSplit GetSplit(int Bra, bool forceRebuild = false);		// Return the split set for branch Bra
 	int BranchSets(int BranchNum, vector <int> &Left, vector <int> &Right);	// Find the sets of leaf sequences that the branch splits
 	int FindBra(int Node_i, int Node_j);	// Find branch linking Nodes i and j, returns -1 if none
 		// Returns the value of total number in the Left set (i.e. Left = m_ariBraLinks[0] )
@@ -292,7 +292,6 @@ private:
 	int m_iRootNode;			// The root node (-1 if not rooted)
 	bool m_bRooted;				// Whether the tree is rooted
     int m_iNoNode;				// The # of nodes in tree
-    int m_iMemNode;				// Number of nodes stored in memory
     int m_iNoBra;				// The # of branches in tree
 	int m_iNoOptBra;			// The # of branches optimised in the current tree
     int m_iNoSeq;				// The # of sequences in tree
@@ -324,6 +323,9 @@ private:
 	double DoBranch(string *tree,int *pos, int *IntVal);
 	void BuildBranches(int NT = -1, int NF = -1);	// Builds the branchs of a tree from nodes recursively
 	bool ValidateTree(bool AllowExit = true);
+
+	// Some Split functions
+	SSplit CalculateSplit(int Bra);						// Return the split set for branch Bra
 
 	////////////////////////////////////////////
 	// Rearrangement functions

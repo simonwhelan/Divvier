@@ -491,9 +491,8 @@ void CTree::GetMemory(int NoSeq)	{
     m_vBraLinks.assign(m_iNoBra,vector<int>(2,-1));
     m_vdBra.assign(m_iNoBra,0.0);
 	// Set up nodes
-    m_iMemNode = m_iNoNode;
-    m_Node.assign(m_iMemNode,NULL);
-    for(i=0;i<m_iMemNode;i++) { m_Node[i] = NULL; m_Node[i] = new CNode; assert(m_Node[i] != NULL); }
+    m_Node.assign(m_iNoNode,NULL);
+    for(i=0;i<(int)m_Node.size();i++) { m_Node[i] = NULL; m_Node[i] = new CNode; assert(m_Node[i] != NULL); }
 }
 
 // Clean tree function
@@ -1092,7 +1091,6 @@ void CTree::Unroot()	{
 	// Now remove the redundant node
 	delete m_Node[m_iRootNode];
 	m_Node.erase(m_Node.begin() + m_iRootNode);
-	m_iMemNode = m_iNoNode - 1;
 	// Finish up the other stuff
 	m_iRootNode = -1; m_bRooted = false; m_iNoNode--; m_iNoBra--;
 	BuildBraLinks(true); // Get the list of branches links
@@ -1177,7 +1175,7 @@ vector <SSplit> CTree::BuildSplits()	{
 		if((BraLink(i,0) == Root() && BraLink(i,1) < NoSeq()) || (BraLink(i,1) == Root() && BraLink(i,0) < NoSeq())) {
 			continue;
 		}
-		m_vSplits.push_back(GetSplit(i));
+		m_vSplits.push_back(CalculateSplit(i));
 		if(BraLink(i,0) == Root() || BraLink(i,1) == Root()) {
 			if(rootCount ++ == 0) {
 				m_vSplits[i].rootLeft = true;
@@ -1191,7 +1189,7 @@ vector <SSplit> CTree::BuildSplits()	{
 	return m_vSplits;
 }
 
-SSplit CTree::GetSplit(int Bra) {
+SSplit CTree::CalculateSplit(int Bra) {
 	SSplit RetSplit;
 	// Check entry conditions
 	assert(InRange(Bra,0,m_iNoBra));
@@ -1217,10 +1215,16 @@ SSplit CTree::GetSplit(int Bra) {
 	return RetSplit;
 }
 
+SSplit CTree::GetSplit(int Bra, bool forceRebuild) {
+	if(m_vSplits.empty() || forceRebuild) { BuildSplits(); }
+	if(InRange(Bra,0,(int)m_vSplits.size())) { return m_vSplits[Bra]; }
+	return SSplit();			// Returns blank when there's a rooted tree and the root is on a terminal branch. Don't know if I like this behaviour
+}
+
 void CTree::OutSplits(ostream &os) {
 	int i;
 	BuildSplits();
-	FOR(i,NoBra()) {
+	FOR(i,m_vSplits.size()) {
 		cout << "\n\t" << m_vSplits[i].BrLabel << ":\t" << m_vSplits[i].Left << "\t" << m_vSplits[i].Right;
 	}
 

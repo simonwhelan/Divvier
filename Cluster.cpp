@@ -30,6 +30,8 @@ void CCluster::MakePairs() {
 	// Get the splits
 	vector <SSplit> splits = _tree.BuildSplits();
 	sort(splits.begin(),splits.end(),[](auto const &a, auto const &b) {
+		if(a.Left.size() == 1) { assert(a.Left[0] == 0); return true; }
+		if(a.Right.size() == 1 && b.Right.size() == 1) { return a.Right[0] < b.Right[0]; }
 		return my_max(a.Left.size(),a.Right.size()) > my_max(b.Left.size(),b.Right.size());
 	});
 	// Distance matrix
