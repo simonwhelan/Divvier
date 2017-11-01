@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 	vector <stringstream> out_seq(Nseq);
 	vector <double> PP(Nseq*Nseq,1);
 
-	int debug_check = -194;
+	int debug_check = -259;
 
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {

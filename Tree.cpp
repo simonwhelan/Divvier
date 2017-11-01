@@ -1173,11 +1173,15 @@ vector <SSplit> CTree::BuildSplits()	{
 	int rootCount = 0;
 	m_vSplits.clear();
 	FOR(i,NoBra()) {
-		if(BraLink(i,0) == Root() || BraLink(i,1) == Root()) {
-			if(rootCount > 0) { continue; }
-			rootCount ++;
-		}
 		m_vSplits.push_back(GetSplit(i));
+		if(BraLink(i,0) == Root() || BraLink(i,1) == Root()) {
+			if(rootCount ++ == 0) {
+				m_vSplits[i].rootLeft = true;
+			} else {
+				m_vSplits[i].rootRight = true;
+			}
+		}
+
 	}
 	assert(!(IsRooted() && rootCount == 0));
 	return m_vSplits;
@@ -1193,7 +1197,7 @@ SSplit CTree::GetSplit(int Bra) {
 	if(!m_bRooted) {
 		return RetSplit;
 	}
-	if (Bra == m_Node[m_iRootNode]->m_viBranch[0] || Bra == m_Node[m_iRootNode]->m_viBranch[1]) { return RetSplit; } // Nothing for root
+//	if (Bra == m_Node[m_iRootNode]->m_viBranch[0] || Bra == m_Node[m_iRootNode]->m_viBranch[1]) { return RetSplit; } // Nothing for root
 	SSplit root;
 	BranchSets(m_Node[m_iRootNode]->m_viBranch[0], root.Left, root.Right);
 	bool inLeft = false, inRight = false;

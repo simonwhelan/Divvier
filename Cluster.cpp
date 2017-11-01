@@ -30,7 +30,7 @@ void CCluster::MakePairs() {
 	// Get the splits
 	vector <SSplit> splits = _tree.BuildSplits();
 	sort(splits.begin(),splits.end(),[](auto const &a, auto const &b) {
-		return my_max(a.Left.size(),a.Right.size()) < my_max(b.Left.size(),b.Right.size());
+		return my_max(a.Left.size(),a.Right.size()) > my_max(b.Left.size(),b.Right.size());
 	});
 	// Distance matrix
 	vector <double> distances = _tree.GetTreePW();
@@ -171,60 +171,40 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 
 void CCluster::UPGMA(vector <vector <int> > &retSplits, vector <double> &PPs, string seq, double threshold) {
 	assert(_ready);
+	int root = -1;
 	vector <int> starter(NoSeq(),0);
 	for(int i = 0; i < NoSeq(); i++) { starter[i] = i; }
 	retSplits.push_back(starter);
-
-	cout << "\nTrying UPGMA"; exit(-1);
-	// Find what clusters to make. Can change this function
-
-	// Sort the splits so they're in the right order (Not the place to do this!)
-	sort(_splitPairs.begin(),_splitPairs.end(),[](const auto &a, const auto &b){
-		return my_max(get<0>(a).Left.size(),get<0>(a).Right.size()) > my_max(get<0>(b).Left.size(),get<0>(b).Right.size());
-	});
-
-	vector <bool> DoSplits(_splitPairs.size(),false);
+	// Find what splits to perform. True means the split will be applied
+	vector <bool> DoSplits(_splitPairs.size(),true);
 	for(int i = 0 ; i < _splitPairs.size(); i++) {
-		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) { continue; }
-//		cout << "\n["<<i<<"]: " << _splits[i].Left << " | " << _splits[i].Right;
-
 #if DEBUG_TESTSPLIT == 1
-		cout << "\n---\nCurrent splits\n";
-		for(auto &out : retSplits) {
-			cout << " | ";
-			for(auto &v : out) { cout << "[" << v << "]" << seq[v] << " " << flush; }
-		}
+		cout << "\n---\nTrying split";
+		cout << "\n["<<i<<"]: " << get<0>(_splitPairs[i]).Left << " | " << get<0>(_splitPairs[i]).Right;
 #endif
-		// Debug code to do filtering approach
-//		if(_splits[i].Left.size() != 1 && _splits[i].Right.size() != 1) { continue; }
+		// Only consider groupings of 2 or more for UPGMA
+		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) {
+			if(get<0>(_splitPairs[i]).Left.size() == 1) { assert(get<0>(_splitPairs[i]).Left[0] == i); }
+			else { assert(get<0>(_splitPairs[i]).Right[0] == i); }
+			continue;
+		}
 
-		if(!TestSplit(i,retSplits, seq, threshold,PPs)) {
-			DoSplits[i] = true;
+		if(TestSplit(i,retSplits, seq, threshold,PPs)) {
+			DoSplits[i] = false;
+			// Do the sequences below on the descendant part of split
+			vector <int> seq2Join;
+			if(get<0>(_splitPairs[i]).rootLeft) { seq2Join = get<0>(_splitPairs[i]).Right; }
+			else { seq2Join = get<0>(_splitPairs[i]).Left; }
+			for(int x : seq2Join) { DoSplits[x] = false; }
 		}
 	}
 	// Add the existing splits
 	for(int i = 0 ; i < _splitPairs.size(); i++) {
-		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) { continue; }
+//		if(get<0>(_splitPairs[i]).Left.size() == 1 || get<0>(_splitPairs[i]).Right.size() == 1) { continue; }
 		if(DoSplits[i]) {
 			retSplits = AddSplit(i,retSplits);
 		}
 	}
-	// Now check the one sequence splits
-	for(int i = 0 ; i < NoSeq(); i++ ) {
-		if(!TestSplit(i,retSplits, seq, threshold,PPs)) {
-			retSplits = AddSplit(i,retSplits);
-		}
-	}
-
-
-
-/*
-	cout << "\n---\nCurrent splits\n";
-	for(auto &out : retSplits) {
-		cout << " | ";
-		for(auto &v : out) {cout << "[" << v << "]" << seq[v] << " " << flush;}
-	}
-	exit(-1);*/
 }
 
 // Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
@@ -256,10 +236,10 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 
 #if DEBUG_TESTSPLIT == 1
 		cout << "\nseq: " << seq;
-		cout << "\nTesting split["<< split2Test << "] " << _splits[split2Test].Left << " | " << _splits[split2Test].Right;
+		cout << "\nTesting split["<< split2Test << "] " << get<0>(_splitPairs[split2Test]).Left << " | " << get<0>(_splitPairs[split2Test]).Right;
 		cout << "\nActive split["<<activeSplit.size()<<"]: "<< activeSplit;
 		cout << "\nPP";
-		for(vector <int>  &v : _pairs[split2Test]) {
+		for(vector <int>  &v : get<1>(_splitPairs[split2Test])) {
 			if(seq[v[0]] == '-' || seq[v[1]] == '-') { continue; }
 			cout << "  [" << v[0] << seq[v[0]]<< "," << v[1] << seq[v[1]] << "]" << PPs[(v[0] * NoSeq()) + v[1]];
 		}
@@ -307,7 +287,7 @@ bool CCluster::TestSplit(int split2Test, vector <vector <int> > &curSplit, strin
 			return _acceptNoInfo;
 		}
 #if DEBUG_TESTSPLIT == 1
-		cout << "\nNaiveStat= " << testStat / (double) _pairs[split2Test].size() << " ; CorrectStat: " << testStat / (double)splitPPs.size();
+		cout << "\nNaiveStat= " << testStat / (double) get<1>(_splitPairs[split2Test]).size() << " ; CorrectStat: " << testStat / (double)splitPPs.size();
 		if(!activePPs.empty()) { cout << " ; activeStat: " << (double) Sum(&activePPs) / (double) activePPs.size(); }
 #endif
 

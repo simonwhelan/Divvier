@@ -41,7 +41,7 @@ public:
 	bool _ready = false;
 	// Some heuristic stuff
 	// 0. Whether to do UPGMA
-	bool _doUPGMA = false;
+	bool _doUPGMA = true;
 	// 1. Similarity check -- accept columns if there's a certain proportion of the same character; usually a bad idea
 	bool _doSimilarityCheck = false;			// Whether to do a similarity check rather than use just PPs
 	double _similarityCutOff = 0.8;				// The cutoff used
