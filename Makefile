@@ -7,19 +7,16 @@ CFLAGS = $(OPTIMISER) -Wall -Wmissing-prototypes -Wshadow
 
 # C Code
 LIB = -lm 
-OBJS = trim.o utils.o hmm.o matrices.o
-HDR = trim.h utils.h hmm.h matrices.h
+OBJS = utils.o hmm.o matrices.o
+HDR = utils.h hmm.h matrices.h
 INC = -I/usr/local/include
 # CPP code
-CPPOBJS = Cluster.o Tree.o Random.o Divvier.o bionj.o
-CPPHDR = Cluster.h Tree.h Random.h Divvier.h
+CPPOBJS = Cluster.o Tree.o Random.o Divvier.o bionj.o Sequence.o
+CPPHDR = Cluster.h Tree.h Random.h Divvier.h Sequence.h
 
 all : fastZorro
 
 # Zorro
-trim.o : trim.c trim.h
-	$(CC) $(CFLAGS) $(INC) -c trim.c
-
 utils.o : utils.c utils.h
 	$(CC) $(CFLAGS) $(INC) -c utils.c
 
@@ -41,6 +38,9 @@ Tree.o : Tree.cpp Tree.h
 
 Random.o : Random.cpp Random.h
 	$(CPP) $(CPPFLAGS) $(INC) -c Random.cpp
+
+Sequence.o : Sequence.cpp Sequence.h
+	$(CPP) $(CPPFLAGS) $(INC) -c Sequence.cpp
 
 #bionj
 bionj.o : bionj.cxx

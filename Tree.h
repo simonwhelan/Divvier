@@ -18,13 +18,11 @@
 #include <list>
 #include <cfloat>
 #include "Random.h"
+#include "Sequence.h"	// Some basic functions for file handling
 
 using namespace::std;
 
 // Some stuff originally in tools.h
-#define BIG_NUMBER 100000000		// A large number
-vector <string> Tokenise(string line);  // Tokenise a string
-vector <string> Tokenise(string line, string Delim);            // Tokenise a string according to delimiter Delim
 string EatWhiteSpace(string line);
 #define my_min(a,b) ((a)<(b)?(a):(b))
 #define my_max(a,b) ((a)>(b)?(a):(b))
@@ -37,23 +35,6 @@ string int_to_string(int num);
 string double_to_string(double num);
 bool FlipBool(bool V);
 bool FlipBin(int i);
-inline bool file_exist (const std::string& name) {
-  struct stat buffer;
-  return (stat (name.c_str(), &buffer) == 0);
-}
-inline std::string read_line(std::istream &in) {
-	std::string tmp;
-	getline(in,tmp);
-	if(!in.good()) { std::cout << "\nError reading file..."; exit(-1); }
-	return tmp;
-}
-inline bool replace(std::string& str, const std::string& from, const std::string& to) {
-    size_t start_pos = str.find(from);
-    if(start_pos == std::string::npos)
-        return false;
-    str.replace(start_pos, from.length(), to);
-    return true;
-}
 
 inline void ProgressSpinner(int suffix = -1, int suffix_total = -1) {
         static int count = 0;
@@ -68,7 +49,6 @@ inline void ProgressSpinner(int suffix = -1, int suffix_total = -1) {
 };
 
 template <class TOutVec> ostream& operator<<(ostream & os, vector <TOutVec> Vec) { int i; FOR(i,(int)Vec.size()) { os << Vec[i] << " "; } return os; }
-template <class TRange> bool InRange(TRange Val, TRange LowerBound, TRange UpperBound) { return ( !(Val < LowerBound) && ( Val < UpperBound) ); }
 template <class TIsIn> bool IsIn(TIsIn Val, vector <TIsIn> Vec) {
         if(Vec.empty()) { return false; }
         if(find(Vec.begin(),Vec.end(),Val) == Vec.end()) { return false; }
@@ -86,13 +66,6 @@ template <class TComp> bool Compare(vector <TComp> *List1, vector <TComp> *List2
         if(List1->size() != List2->size()) { return false; }
         FOR(i,(int)List1->size()) { if(fabs((double) (List1->at(i) - List2->at(i))) > 1.0E-6) { same = false; break; } }
         return same;
-}
-template <typename T>
-std::vector<int> ordered(std::vector<T> const& values) {
-    std::vector<int> indices(values.size());
-    std::iota(begin(indices), end(indices), static_cast<int>(0));
-    std::sort(begin(indices), end(indices), [&](int a, int b) { return values[a] < values[b]; });
-    return indices;
 }
 
 

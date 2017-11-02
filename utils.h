@@ -12,6 +12,16 @@
 
 int readSeq(char *inFile);
 void error(char *fmt, ... );
+int pep2num(char c);
+char *removeGaps(char *seq,int len,int *nlen);
+
+#define addLogProb(x,y) ( (y) > (x) ) ? ((y) += log(1 + exp((x)-(y)))) : ((y)=(x)+log(1 + exp((y)-(x))))
+
+#define MAX_LINE_LEN 2000
+#define MAX_FILENAME_LEN 80
+#define N_BASES 4
+#define N_PEPT 20
+#define MAX_LABEL_LEN 20
 
 EXTERN int Nseq;
 EXTERN char **zorro_raw_seq;

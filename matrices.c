@@ -11,7 +11,6 @@
 
 #define EXTERN extern
 #include "utils.h"
-#include "trim.h"
 #include  "matrices.h"
 #undef EXTERN
 

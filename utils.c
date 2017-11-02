@@ -9,10 +9,6 @@
 #include <math.h>
 
 
-#define EXTERN extern 
-#include "trim.h"
-#undef EXTERN
-
 #define EXTERN
 #include "utils.h"
 #undef EXTERN
@@ -26,7 +22,6 @@ void protdist(char *inFile,double **mat);
 char getNextBase(FILE **seqFile);
 int getSeqLen(FILE *seqFile);
 char  *readNextSeq(char *inFile,int *LEN,FILE *fp1,FILE *fp2,int *pflag,char **name);
-int pep2num(char c);
 char *removeGaps(char *seq,int len,int *nlen);
 
 int Nseq;

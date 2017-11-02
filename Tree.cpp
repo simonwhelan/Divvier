@@ -2053,29 +2053,3 @@ bool FlipBin(int i)             { assert(i==0||i==1); if(i==0) { return 1; } ret
 string int_to_string(int num) { stringstream ss; ss << num; return ss.str(); }
 string double_to_string(double num) { stringstream ss; ss << num; return ss.str(); }
 ostream& Error(string str , ostream  &os) { os << str; assert(0); exit(-1); };
-
-vector <string> Tokenise(string line) {
-        string buf;
-        stringstream in(line);
-        vector <string> Toks;
-        Toks.~vector();
-        while(in >> buf) { Toks.push_back(buf); }
-        return Toks;
-}
-vector <string> Tokenise(string line, string Delim)     {
-        size_t i = 0, j,j1;
-        vector <string> Toks;
-        while(i != (int)line.size())    {
-                j = line.find(Delim,i+1);
-                if(j == string::npos) { j = j1 = (int)line.size(); } else { j1 = j+1; }
-                Toks.push_back(line.substr(i,j-i));
-                i = j1;
-        }
-        return Toks;
-}
-
-string EatWhiteSpace(string line)       {
-        string::iterator it, temp;
-        IFOR(it,line)   { if(isspace(*it)) { temp = it; it = it - 1; line.erase(temp); } }
-        return line;
-}
