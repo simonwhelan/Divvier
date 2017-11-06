@@ -36,6 +36,8 @@ void CCluster::MakePairs() {
 	vector <tuple <int , int , double> > distSet;			// The set of pairwise comparisons (int i, int j) and their distance (double)
 	vector <vector <int> > pairs2add;
 	for(SSplit &split : splits) {
+		// If just doing partial filtering only get for the trivial splits
+		if(!_doDivvying) { if(split.Left.size() != 1 && split.Right.size() != 1) { continue; } }
 		// Get the full list of pairwise comparisons in the splits
 		if(split.Left.size() > split.Right.size()) {
 			big = split.Left; small = split.Right;
@@ -145,6 +147,11 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 	retSplits.push_back(starter);
 	// Greedily remove splits, worst first
 	vector <bool> splitDone(_splitPairs.size(),false);
+	// If doing partial filtering set all the non trivial splits to true
+	if(!_doDivvying) {
+		for(int i = 0; i < _splitPairs.size(); i++) {
+			if(get<0>(_splitPairs[i]).Left.size() != 1 && get<0>(_splitPairs[i]).Right.size() != 1) { splitDone[i] = true; }
+	}	}
 #if DEBUG_TESTSPLIT == 1
 	cout << "\n--- Greedy splitting ----";
 #endif

@@ -101,12 +101,13 @@ template <class TRange> bool InRange(TRange Val, TRange LowerBound, TRange Upper
 std::string RemoveWhiteSpace(std::string s);
 std::vector <std::string> Tokenise(std::string line);	// Tokenise a string
 std::vector <std::string> Tokenise(std::string line, std::string Delim);		// Tokenise a string according to delimiter Delim
-inline void ProgressSpinner(int suffix = -1) {
+inline void ProgressSpinner(int suffix = -1,int suffix_total = -1,std::string prefix = "") {
         static int count = 0;
         static char progress_spinner [] = "/-\\|";
-        printf("\r%c",progress_spinner[count++]);
-        if(suffix >= 0) { printf(" %d",suffix); }
-        fflush(stdout);
+        std::cout << "\r" << prefix << progress_spinner[count++];
+        if(suffix >= 0) { std::cout << " " << suffix; }
+        if(suffix_total >= 0) { std::cout << " / " << suffix_total; }
+        std::cout << std::flush;
         if(count == 4) { count = 0; }
 };
 

@@ -200,7 +200,6 @@ CTree::CTree(const CTree &Tree)	{
 // NoSeq is the number of leaf nodes in the tree
 /////////////////////////////////////////////////////
 void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool AllowFail,bool AllowSubTree) {
-	cout << "\nCreating tree" << flush;
     int i,j,pRight=0,pLeft=0,NextPointer=0,Parent, IntVal = -1, mem_seq, countBra, SubSeq;
     int NoSeq = Names.size();	// Get the number of sequences from the names provide
     double TempBranch[3];		// Stores branch lengths
@@ -290,8 +289,6 @@ void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool A
 		if(isalpha(Tree[i])) { Error("\nError in CTree::CreateTree(): tree has names not passed to the function...\nTree: " + Tree + "\n\n"); }
 	}
 	TempTree = Tree;
-
-	cout << "\nDone init" << flush;
 
     if(SubSeq>2)	{		// Prepare first bit of trNextPointeree if more than two species
         // Loop to allocate nodes pLeft, pRight, Next are the old child0 child1 and parent nodes

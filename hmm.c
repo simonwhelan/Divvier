@@ -140,7 +140,7 @@ void addPosterior(int X,int Y);
 
 /////////////////////////////////////////////////////////////////
 // Stuff simon has added for bounding
-#define DO_APPROX 1
+int DO_HMM_APPROX = 1;
 #define my_min(a,b) ((a)<(b)?(a):(b))	// Duplicate required
 #define my_max(a,b) ((a)>(b)?(a):(b))
 int *leftBounds,*rightBounds; // The upper and lower bounds on the DP matrix for each run;
@@ -279,7 +279,7 @@ void addPosterior(int X, int Y) {
 	}
 
 	int *posX = Xpos, *posY = Ypos;
-	if (!DO_APPROX) {
+	if (!DO_HMM_APPROX) {
 		forward(zorro_sequence[X], zorro_sequence[Y], lens[X], lens[Y]);
 		backward(zorro_sequence[X], zorro_sequence[Y], lens[X], lens[Y]);
 	} else {

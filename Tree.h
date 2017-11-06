@@ -36,18 +36,6 @@ string double_to_string(double num);
 bool FlipBool(bool V);
 bool FlipBin(int i);
 
-inline void ProgressSpinner(int suffix = -1, int suffix_total = -1) {
-        static int count = 0;
-        static char progress_spinner [] = "/-\\|";
-        printf("\r%c",progress_spinner[count++]);
-        if(suffix >= 0) {
-        	printf(" %d",suffix);
-        	if(suffix_total >= 0) { cout << " / " << suffix_total; }
-        }
-        fflush(stdout);
-        if(count == 4) { count = 0; }
-};
-
 template <class TOutVec> ostream& operator<<(ostream & os, vector <TOutVec> Vec) { int i; FOR(i,(int)Vec.size()) { os << Vec[i] << " "; } return os; }
 template <class TIsIn> bool IsIn(TIsIn Val, vector <TIsIn> Vec) {
         if(Vec.empty()) { return false; }

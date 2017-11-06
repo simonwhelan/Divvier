@@ -3,6 +3,21 @@
  *
  *  Created on: 24 Oct 2017
  *      Author: simon
+ *  ---
+ *  A program for divvying or partial filtering of alignments
+ *
+ *  Usage:
+ *   ./divvier [OPTIONS] file threshold
+ *
+ *  Options choosing clustering approach:
+ *  -divvy 		  : do standard divvying (DEFAULT)
+ *  -partial 	  : Do only partial filtering by checking whether each character is joined with the rest
+ *  (-partialall) : do the partial approach, but output the characters from the remaining divvied columns as single characters. Needed for MSA accuracy calcs
+ *
+ *  Options for defining the heuristics
+ *  -approx X     : Minimum number of comparisons required for testing each partition in the divvied MSA (DEFAULT: X = 10; if X < 0 then do all)
+ *  -HMMapprox    : Do the pairHMM bounding approximation (DEFAULT)
+ *  -HMMexact     : Do the full pairHMM and ignore bounding
  */
 
 // Imported stuff from Zorro and bionj
@@ -28,48 +43,110 @@ vector <string> names;
 vector <string> in_seq;
 void CreateZorro(); // Must be called after names and in_seq are initialised
 
-int main(int argc, char *argv[]) {
-
-	if(argc != 3) { cout << "\nStandard usage: ./divvier file threshold\n\n"; exit(-1); }
-
-	string fileIn = "ABCE.linsi.fasta";
+// Structure defining options
+struct SOptions {
+	// File information
 	string suffixPP = ".PP";
 	string suffixDivvy = ".divvy";
-	bool skipSingles = false;
+	// Divvying information
+	int doFullDivvy = 1; 				// 1 = standard divvying; 0 = do partial filtering; -1 do partial filtering with messy output
+	bool HMMapproximation = true;		// Whether to perform the pairHMM approximation
+	bool acceptNoInfo = false;			// Whether comparisons between sets when divvying are accepted if there's no information
+	int approxNumber = 10;
+	double threshold = 0.15;
+	// Stuff not available to user
 	string divvy_char = "*";
-	double threshold = 0.3;
+} options;
 
-	fileIn = argv[1];
-	threshold = atof(argv[2]);
-	if(!InRange(threshold,0.0,1.0)) { cout << "\nError: threshold must be in range (0,1)\n"; exit(-1); }
+int main(int argc, char *argv[]) {
+
+	string fileIn;
+	vector <CSequence> *seqData = NULL;
+
+	cout << "\n=================================================================";
+	cout << "\n    Divvier : a program for MSA processing by Simon Whelan";
+	cout << "\n=================================================================";
+
+	bool showHelp = false;
+	// Process options
+	if(argc >= 2) {
+		if(strcmp(argv[1], "-h") != 0) {
+			// Get the file name and read it
+			fileIn = argv[argc - 1];
+			seqData = ReadSequences(argv[argc - 1]);
+			// Get the options
+			for(int i = 1 ; i < argc - 1; i++) {
+				if(argv[i][0] != '-') { continue; }
+				else if(strcmp(argv[i],"-divvy") == 0) { options.doFullDivvy = 1; }
+				else if(strcmp(argv[i], "-partialall") == 0) { options.doFullDivvy = -1; }
+				else if(strcmp(argv[i], "-partial") == 0) { options.doFullDivvy = 0; options.divvy_char = "-"; }
+				else if(strcmp(argv[i], "-HMMapprox") == 0) { options.HMMapproximation = true; }
+				else if(strcmp(argv[i], "-HMMexact") == 0) { options.HMMapproximation = false; }
+				else if(strcmp(argv[i], "-approx") == 0) {
+					options.approxNumber = atoi(argv[i+1]);
+					if(!InRange(options.approxNumber,1,100000)) { cout << "\n-approx options requires X to be a positive number\n\n"; exit(-1); }
+				}
+				else if(strcmp(argv[i], "-thresh") == 0 ) { options.threshold = atof(argv[i+1]); }
+			}
+		} else { showHelp = true; }
+	} else { showHelp = true; }
+	if(showHelp) {
+		cout << "\n\n./divvier [options] input_file ";
+		cout << "\n\nClustering options:";
+		cout << "\n\t-divvy       : do standard divvying (DEFAULT)";
+		cout << "\n\t-partial     : do partial filtering by testing removal of individual characters";
+		cout << "\n\t-thresh X    : set the threshold for divvying to X (DEFAULT = " << options.threshold << ")";
+		cout << "\n\nApproximation options: ";
+		cout << "\n\t-approx X    : minimum number of characters tests in a split when divvying (DEFAULT X = " << options.approxNumber << ")";
+		cout << "\n\t-HMMapprox   : Do the pairHMM bounding approximation (DEFAULT)";
+		cout << "\n\t-HMMexact    : Do the full pairHMM and ignore bounding";
+		cout << "\n\n";
+		exit(-1);
+	}
+
+	// Apply options
+	CCluster::Instance()->SetOptions(options.acceptNoInfo, options.approxNumber, (options.doFullDivvy != 1)?true:false);
+	DO_HMM_APPROX = options.HMMapproximation;
+	if(!InRange(options.threshold,0.0,1.0)) { cout << "\nError: threshold must be in range (0,1)\n"; exit(-1); }
+	assert(seqData != NULL);
 
 	// Read in the sequence using CSequence's method and transfer it to the variables that Zorro has in global scope here
-	vector <CSequence> *seqData = ReadSequences(fileIn);
+	cout << "\nInitialising sequences and pairHMM" << flush;
 	for(int i = 0; i < seqData->size() ; i++) {
 		names.push_back(seqData->at(i).Name());
 		in_seq.push_back(seqData->at(i).Seq());
-//		cout << "\n" << names[i] << "\t" << in_seq[i];
 	}
 	CreateZorro();
+	cout << " ... done" << flush;
+	cout << "\nThere are " << seqData->size() << " sequences in an alignment of length " << alen << flush;
 
 	// Initialise the Clustering program
 	CCluster::Instance()->AddNames(names);
-
-	cout << "\nMaking tree: " << flush;
+	cout << "\nMaking guide tree for splitting: " << flush;
 	CCluster::Instance()->AddTree(MakeTree(names,in_seq));
 	cout << " ... done" << flush;
 
 	// Get the posteriors, either through computation or through HMM calcs
-	GetPosteriors(fileIn + suffixPP);
+	cout << "\n\nGetting posterior probabilities from pairHMM" << flush;
+	if(options.HMMapproximation) { cout << " (approx)" << flush; } else { cout << " (exact)" << flush; }
+	GetPosteriors(fileIn + options.suffixPP);
 
-	cout << "\nPerforming divvying along alignment" << endl << flush;
+	cout << "\nPerforming ";
+	switch(options.doFullDivvy) {
+	case -1: cout << "partial divvying with full output"; break;
+	case 0:  cout << "partial"; break;
+	case 1:  cout << "full"; break;
+	default:
+		cout << "\nUnknown options for divvying..."; exit(-1);
+	}
+	cout << " divvying along alignment with threshold " << options.threshold << endl << flush;
 
 	vector <stringstream> out_seq(Nseq);
 	vector <double> PP(Nseq*Nseq,1);
 
 	// Do the divvying and output
 	for(int i = 0; i < alen; i++) {
-		ProgressSpinner(i+1,alen);
+		ProgressSpinner(i+1,alen,"\t");
 		// Get the appropriate PPs
 		for(auto & x : PP) { x = 0; }	// Initialise the matrix to zero
 		for(auto & pp : allPP) {
@@ -78,31 +155,34 @@ int main(int argc, char *argv[]) {
 		// Do the divvying
 		string seq;	// The column characters; needed for gaps
 		for(int k = 0; k < Nseq; k++) { seq = seq + in_seq[k][i]; }
-		vector <vector <int> > divvy = CCluster::Instance()->OutputClusters(PP,seq,threshold);
+		vector <vector <int> > divvy = CCluster::Instance()->OutputClusters(PP,seq,options.threshold);
 		// Sort output
-		if(divvy.size() == Nseq && skipSingles) { continue; }			// Skip clusters that are fully split
+		if(divvy.size() == Nseq && options.doFullDivvy == 0) { continue; }			// Skip clusters that are fully split
 
 		for(auto & v : divvy) {
-			if(v.size() == 1 && skipSingles) { continue; }
-			// Always skip if all gaps
+			// Count characters for output
 			int count = 0;
-			for(auto x : v) {
-				if(!IsGap(in_seq[x][i])) { count ++; break; }
-			}
+			if(options.doFullDivvy == 0) { for(auto x : v) { if(!IsGap(in_seq[x][i])) { count ++; } } }
+			else { for(auto x : v) { if(!IsGap(in_seq[x][i])) { count ++; break; } } }
+			// Always skip if all gaps
 			if(count == 0) { continue; }
+			// Skip for partial filtering if only a single character and the column is divvied
+			if(count == 1 && options.doFullDivvy == 0) { continue; }
+			// Do output
 			for(int j = 0; j < Nseq; j++)  {
 				if(IsGap(in_seq[j][i])) {	// Sort gaps
 					out_seq[j] << in_seq[j][i];
 				} else if(find(v.begin(),v.end(),j) != v.end()) {	// Sort  the real sequences
 					out_seq[j] << in_seq[j][i];
 				} else {											// Otherwise it's a divvied character
-					out_seq[j] << divvy_char;
+					if(options.doFullDivvy == 0) { out_seq[j] << "-"; }	// Only one column so make it look gapped
+					else                         { out_seq[j] << options.divvy_char; } // Otherwise standard divvying
 				}
 			}
 		}
 	}
 	// Do the output
-	string outfile = fileIn + suffixDivvy;
+	string outfile = fileIn + options.suffixDivvy;
 	replace(outfile,".fas","");
 	outfile += ".fas";
 	cout << "\nDivvying complete. Outputting to " << outfile;
@@ -125,7 +205,7 @@ void GetPosteriors(string File) {
 	assert(!names.empty() && !in_seq.empty());
 	// If the file exists then try reading it
 	if(file_exist(File)) {
-		cout << "\nPosterior probability file <" << File << "> exists. \n\tReading file";
+		cout << "\n\tPosterior probability file <" << File << "> exists. \n\tReading file";
 		vector <string> Toks;
 		string tmp;
 		ifstream in(File);
@@ -153,11 +233,11 @@ void GetPosteriors(string File) {
 	}
 	// Otherwise calculate the posteriors
 	else {
-		cout << "\nCalculating " << CCluster::Instance()->NoPairs() << "/" <<  ((Nseq*Nseq)-Nseq)/2 << " pairwise posteriors. This may take some time...\n" << flush;
+		cout << "\n\tCalculating " << CCluster::Instance()->NoPairs() << "/" <<  ((Nseq*Nseq)-Nseq)/2 << " pairwise posteriors (min_per_split=" << options.approxNumber << "). This may take some time...\n" << flush;
 		// Do the calculation
 		int count = 0;
 		for(auto & x : CCluster::Instance()->PairsToCalculate()) {
-			ProgressSpinner(++count, CCluster::Instance()->NoPairs());
+			ProgressSpinner(++count, CCluster::Instance()->NoPairs(),"\t");
 			getSinglePosterior(x[0],x[1]);
 			allPP.push_back(CPostP(x[0],x[1],zorro_posterior,alen));
 		}

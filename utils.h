@@ -23,6 +23,8 @@ char *removeGaps(char *seq,int len,int *nlen);
 #define N_PEPT 20
 #define MAX_LABEL_LEN 20
 
+EXTERN int DO_HMM_APPROX;
+
 EXTERN int Nseq;
 EXTERN char **zorro_raw_seq;
 EXTERN char **zorro_align;

@@ -15,8 +15,6 @@
 #undef EXTERN
 
 
-
-
 /* Parameters from Phylip */
 
 /* this JTT matrix decomposition thanks to Elisabeth Tillier */

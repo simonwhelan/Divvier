@@ -28,7 +28,11 @@ public:
 		return true;
 	}
 												// Second initiation function that gets the splits from the tree
-	void SetOptions(bool acceptNoInfo, int approxNumber);		// Function for setting the approximation stuff
+	void SetOptions(bool acceptNoInfo, int approxNumber, bool partialFilter) {		// Function for setting the approximation stuff
+		_acceptNoInfo = acceptNoInfo;
+		_approxNumber = approxNumber;
+		_doDivvying = !partialFilter;
+	}
 	// Access for the pairs needed for calculation
 	vector <vector <int> > PairsToCalculate();							// Gets the list of pairs to calculate
 	int NoPairs() { return _all_pairs.size(); }
@@ -40,6 +44,8 @@ public:
 
 private:
 	bool _ready = false;
+	// Type of filtering
+	bool _doDivvying = true;						// TRUE = divvying; FALSE = partialFilter;
 	// Some heuristic stuff
 	// 1. Accept with no info -- accept a split if there's no PP to support or refute it; important in sparse alignments
 	bool _acceptNoInfo = false;
