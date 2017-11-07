@@ -121,7 +121,7 @@ EFileType TestFile(std::string SeqFile) {
     					else {
     						bool flag = true;
     						for(int i = 1; i < Toks.size() ; i++) {
-    							for(auto &c : Toks[i]) { if(!IsSeq(c)) { flag = false; } }
+    							for(auto &c : Toks[i]) { if(!IsSeq(c) && !IsGap(c)) { flag = false; } }
     						}
     						if(flag) { return Phylip; }
     					}
