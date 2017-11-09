@@ -8,6 +8,10 @@
 
 using namespace::std;
 #include <unordered_set>
+#include <tuple>
+
+double Coverage(string &seq1, string &seq2);
+vector < tuple <int,int,double> > CoverageMatrix(vector <string> &seq);
 
 // Some initialisation
 CCluster *CCluster::_cluster = NULL;
@@ -25,11 +29,13 @@ CCluster * CCluster::Instance() {
 // ---
 // Computes the distance matrix from the tree and uses it to select a set of pairs for testing during divvying
 // Gets the splits from the tree
-void CCluster::MakePairs() {
+void CCluster::MakePairs(vector <string> &seq) {
 	assert(_tree.NoSeq() == NoSeq());
 	assert(_splitPairs.empty());
 	// Get the splits; no sorting required because of greedy algorithm
 	vector <SSplit> splits = _tree.BuildSplits();
+	// Get the coverage matrix
+	vector <tuple <int,int,double> > coverageMat = CoverageMatrix(seq);
 	// Distance matrix
 	vector <double> distances = _tree.GetTreePW();
 	vector <int> big, small;
@@ -54,13 +60,31 @@ void CCluster::MakePairs() {
 			return get<2>(t1) < get<2>(t2);
 		});
 		// Obtain samples. The rules are:
-		// 		Unique sequences from the small data set are the priority, each with a different partner
+		//	(1)	First COV_COUNT comparisons will always be those that maximise coverage
+		const int COV_COUNT = 2;
+		// 	(2)	Unique sequences from the small data set are the priority, each with a different partner
+		// Some counters
 		vector <int> small_count(NoSeq(),0),big_count(NoSeq(),0);
 		int small_max = ceil( ( (double) _approxNumber / (double) small.size() ) +1 );
 		int big_max = ceil( ( (double) _approxNumber / (double) big.size() ) + 1);
+		// Get the first two comparisons according to rule 1
+		int covCount = 0;
+		for (auto &cM : coverageMat) {
+			if(find(small.begin(),small.end(),get<0>(cM)) != small.end() && find(big.begin(),big.end(),get<1>(cM)) != big.end()) {
+				pairs2add.push_back(vector<int>{get<0>(cM),get<1>(cM)});
+				covCount++;
+			} else if(find(small.begin(),small.end(),get<1>(cM)) != small.end() && find(big.begin(),big.end(),get<0>(cM)) != big.end()) {
+				pairs2add.push_back(vector<int>{get<1>(cM),get<0>(cM)});
+				covCount++;
+			}
+			if(covCount == COV_COUNT)  { break; }
+		}
+		if(covCount != my_min(COV_COUNT,((NoSeq()*NoSeq())-NoSeq())/2)) { cout << "\nWEIRD ERROR: Failed to collect highest coverage pairs\n\n"; exit(-1); }
+		// Now get the remaining ones according to rule 2
 		for(int i = 0; i < distSet.size(); i++) {
 			if(small_count[get<0>(distSet[i])] >= small_max) { continue; }
 			if(big_count[get<1>(distSet[i])] >= big_max) { continue; }
+			if(find(pairs2add.begin(), pairs2add.end(), vector<int>{get<0>(distSet[i]),get<1>(distSet[i])}) != pairs2add.end()) { continue; }
 			pairs2add.push_back(vector<int>{get<0>(distSet[i]),get<1>(distSet[i])});
 			small_count[get<0>(distSet[i])]++;
 			big_count[get<1>(distSet[i])]++;
@@ -87,6 +111,32 @@ void CCluster::MakePairs() {
 		}
 	}
 	_ready = true;
+}
+
+// Compute coverage between two sequences
+double Coverage(string &seq1, string &seq2) {
+	static string gaps = "*X-?N";
+	int count = 0;
+	assert(seq1.size() == seq2.size());
+	for(int i = 0 ; i < seq1.size(); i++) {
+		if(find(gaps.begin(),gaps.end(),seq1[i]) == gaps.end()) { continue; }
+		if(find(gaps.begin(),gaps.end(),seq2[i]) == gaps.end()) { continue; }
+		count++;
+	}
+	return (double) count / (double) seq1.size();
+}
+
+vector <tuple <int,int,double>> CoverageMatrix(vector <string> &seq) {
+	vector <tuple<int,int,double> > covMat;
+	for(int i = 0; i < seq.size() ; i++) {
+		for(int j = i + 1; j < seq.size(); j++) {
+			covMat.push_back(tuple<int,int,double>(i,j,Coverage(seq[i],seq[j])));
+		}
+	}
+	sort(covMat.begin(),covMat.end(),[](auto &a, auto &b) {
+		return get<2>(a) > get<2>(b);
+	});
+	return covMat;
 }
 
 // Get the set of pairs for testing split numbered splitNum

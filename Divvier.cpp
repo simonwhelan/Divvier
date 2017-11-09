@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
 	// Initialise the Clustering program
 	CCluster::Instance()->AddNames(names);
 	cout << "\nMaking guide tree for splitting: " << flush;
-	CCluster::Instance()->AddTree(MakeTree(names,in_seq));
+	CCluster::Instance()->AddTree(MakeTree(names,in_seq),in_seq);
 	cout << " ... done" << flush;
 
 	// Get the posteriors, either through computation or through HMM calcs

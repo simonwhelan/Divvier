@@ -21,10 +21,10 @@ public:
 	// Initiation
 	bool AddNames(std::vector <string> Names) { if(!_names.empty()) { return false; }_names = Names; return true; };
 												// First initiation function that reads the sequence names
-	bool AddTree(std::string Tree) {
+	bool AddTree(std::string Tree, std::vector <string> &seq) {
 		if(Instance()->_tree.NoSeq() > 0) { return false; }
 		Instance()->_tree = CTree(Tree,_names);
-		MakePairs();
+		MakePairs(seq);
 		return true;
 	}
 												// Second initiation function that gets the splits from the tree
@@ -63,7 +63,7 @@ private:
 	// Functions
 	int NoSeq() { return _names.size(); }
 	// Values linked to the clustering
-	void MakePairs();																			// Calculates the pairs needed for clustering
+	void MakePairs(std::vector <string> &seq);													// Calculates the pairs needed for clustering
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
 	bool TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs);
 																								// Function that uses PPs to test a specific split
