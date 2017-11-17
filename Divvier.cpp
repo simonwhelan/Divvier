@@ -71,6 +71,7 @@ int main(int argc, char *argv[]) {
 	cout << "\n=================================================================";
 
 	bool showHelp = false;
+	bool doneThreshold = false;
 	// Process options
 	if(argc >= 2) {
 		if(strcmp(argv[1], "-h") != 0) {
@@ -80,16 +81,16 @@ int main(int argc, char *argv[]) {
 			// Get the options
 			for(int i = 1 ; i < argc - 1; i++) {
 				if(argv[i][0] != '-') { continue; }
-				else if(strcmp(argv[i],"-divvy") == 0) { options.suffixDivvy = ".divvy"; options.doFullDivvy = 1; options.threshold = 0.801; }
+				else if(strcmp(argv[i],"-divvy") == 0) { options.suffixDivvy = ".divvy"; options.doFullDivvy = 1; if(!doneThreshold) { options.threshold = 0.801; } }
 				else if(strcmp(argv[i], "-partialall") == 0) { options.suffixDivvy = ".partialall"; options.doFullDivvy = -1; options.threshold = 0.857; }
-				else if(strcmp(argv[i], "-partial") == 0) { options.suffixDivvy = ".partial"; options.doFullDivvy = 0; options.divvy_char = "-"; options.threshold = 0.857; }
+				else if(strcmp(argv[i], "-partial") == 0) { options.suffixDivvy = ".partial"; options.doFullDivvy = 0; options.divvy_char = "-"; if(!doneThreshold) { options.threshold = 0.857; } }
 				else if(strcmp(argv[i], "-HMMapprox") == 0) { options.HMMapproximation = true; }
 				else if(strcmp(argv[i], "-HMMexact") == 0) { options.HMMapproximation = false; }
 				else if(strcmp(argv[i], "-approx") == 0) {
 					options.approxNumber = atoi(argv[i+1]);
 					if(!InRange(options.approxNumber,1,100000)) { cout << "\n-approx options requires X to be a positive number\n\n"; exit(-1); }
 				}
-				else if(strcmp(argv[i], "-thresh") == 0 ) { options.threshold = atof(argv[i+1]); }
+				else if(strcmp(argv[i], "-thresh") == 0 ) { doneThreshold = true; options.threshold = atof(argv[i+1]); }
 			}
 		} else { showHelp = true; }
 	} else { showHelp = true; }
