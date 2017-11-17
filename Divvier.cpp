@@ -14,6 +14,9 @@
  *  -partial 	  : Do only partial filtering by checking whether each character is joined with the rest
  *  (-partialall) : do the partial approach, but output the characters from the remaining divvied columns as single characters. Needed for MSA accuracy calcs
  *
+ * NOTE: Experimentally derived thresholds are: 0.857 for partial filtering (FDR = 0.1) and 0.801 for divvying (FDR = 0.01)
+ *
+ *
  *  Options for defining the heuristics
  *  -approx X     : Minimum number of comparisons required for testing each partition in the divvied MSA (DEFAULT: X = 10; if X < 0 then do all)
  *  -HMMapprox    : Do the pairHMM bounding approximation (DEFAULT)
@@ -53,7 +56,7 @@ struct SOptions {
 	bool HMMapproximation = true;		// Whether to perform the pairHMM approximation
 	bool acceptNoInfo = false;			// Whether comparisons between sets when divvying are accepted if there's no information
 	int approxNumber = 10;
-	double threshold = 0.15;
+	double threshold = 0.801;
 	// Stuff not available to user
 	string divvy_char = "*";
 } options;
@@ -77,9 +80,9 @@ int main(int argc, char *argv[]) {
 			// Get the options
 			for(int i = 1 ; i < argc - 1; i++) {
 				if(argv[i][0] != '-') { continue; }
-				else if(strcmp(argv[i],"-divvy") == 0) { options.doFullDivvy = 1; }
-				else if(strcmp(argv[i], "-partialall") == 0) { options.doFullDivvy = -1; }
-				else if(strcmp(argv[i], "-partial") == 0) { options.doFullDivvy = 0; options.divvy_char = "-"; }
+				else if(strcmp(argv[i],"-divvy") == 0) { options.suffixDivvy = ".divvy"; options.doFullDivvy = 1; options.threshold = 0.801; }
+				else if(strcmp(argv[i], "-partialall") == 0) { options.suffixDivvy = ".partialall"; options.doFullDivvy = -1; options.threshold = 0.857; }
+				else if(strcmp(argv[i], "-partial") == 0) { options.suffixDivvy = ".partial"; options.doFullDivvy = 0; options.divvy_char = "-"; options.threshold = 0.857; }
 				else if(strcmp(argv[i], "-HMMapprox") == 0) { options.HMMapproximation = true; }
 				else if(strcmp(argv[i], "-HMMexact") == 0) { options.HMMapproximation = false; }
 				else if(strcmp(argv[i], "-approx") == 0) {

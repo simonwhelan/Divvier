@@ -50,6 +50,7 @@ private:
 	// 1. Accept with no info -- accept a split if there's no PP to support or refute it; important in sparse alignments
 	bool _acceptNoInfo = false;
 	bool _warningNoInfo = false;
+	bool _forceValidate = true; 		// This will loop through the alignment for each character of each sequence check there's a valid pair to check for it
 	// 2. The number of pairwise comparisons to make for each split
 	int _approxNumber = 10;
 	// Variables
@@ -64,6 +65,8 @@ private:
 	int NoSeq() { return _names.size(); }
 	// Values linked to the clustering
 	void MakePairs(std::vector <string> &seq);													// Calculates the pairs needed for clustering
+	void DoValidate(vector <string> &seq, vector <vector <int> > &pairs2add, SSplit &split,	vector <double> &distances);
+																								// if(_forceValidate) will look at the alignment to ensure better pair coverage
 	vector <vector <int> > GetPairs(int splitNum);												// Get the pairs for a specific split number
 	bool TestSplit(int split2Test, vector <vector <int> > &curSplit, string seq, double threshold, vector <double> &PPs);
 																								// Function that uses PPs to test a specific split

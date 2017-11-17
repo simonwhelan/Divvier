@@ -90,6 +90,10 @@ void CCluster::MakePairs(vector <string> &seq) {
 			big_count[get<1>(distSet[i])]++;
 			if(pairs2add.size() >= _approxNumber) { break; }	// Finish when we have the full list
 		}
+		// Finally do the validate if required
+		if(_forceValidate) {
+			DoValidate(seq, pairs2add, split, distances);
+		}
 		_splitPairs.push_back( tuple<SSplit ,vector <vector <int> > >(split , pairs2add) );
 		// Clean up
 		pairs2add.clear();
@@ -111,6 +115,54 @@ void CCluster::MakePairs(vector <string> &seq) {
 		}
 	}
 	_ready = true;
+//	exit(-1);
+}
+
+// The DoValidate function. A function that will help with horrid alignments
+void CCluster::DoValidate(vector <string> &seqs, vector <vector <int> > &pairs2add, SSplit &split, vector <double> &distances) {
+//	cout << "\nCalling DoValidate";
+	for(auto &s: seqs) {
+		if(s.size() != seqs[0].size()) { cout << "\nERROR: CCluster::DoValidate for unaligned sequences? Developer problem?\n\n"; exit(-1); }
+	}
+	for(int pos = 0; pos < seqs[0].size(); pos++) {
+		int count = 0;
+		// Get the current column
+		stringstream ss;
+		for(auto &s: seqs) { ss << s[pos]; if(IsSeq(s[pos])) { count ++; } }
+		if(count < 2) { continue; }	// Skip 1 character or all gap columns
+		string seq = ss.str();
+		// Check there's a meaningful comparison for this column
+		count = 0;
+		for(auto &i : split.Left) {
+			for(auto &j : split.Right) {
+				if(IsSeq(seq[i]) && IsSeq(seq[j])) { count ++; }
+			}
+			if(count > 0) { break; }
+		}
+		if(count == 0) { continue; }
+		// Check at least one pairs2add covers the split
+		count = 0;
+		for(auto &p : pairs2add) {
+			if(IsSeq(seq[p[0]]) && IsSeq(seq[p[1]])) { count ++; }
+		}
+		if(count >= _approxNumber) { continue; }
+		// There's no coverage here so find all valid pairs => newPairs
+		vector < tuple< vector <int> , double> > newPairs;
+		for(auto &i : split.Left) {
+			for(auto &j : split.Right) {
+				if(IsSeq(seq[i]) && IsSeq(seq[j])) {
+					newPairs.push_back( tuple<vector <int>,double >(vector<int>{i,j}, distances[(i*NoSeq())+j]) );
+					break;
+				}
+			}
+		}
+		// Now find the closest of these newPairs and make the number of comparisons add up to _approxNumber if possible
+		sort(newPairs.begin(),newPairs.end(),[](auto &a, auto &b){
+			return get<1>(a) < get<1>(b);
+		});
+		for(int i = 0; i < my_min(_approxNumber - count,newPairs.size()); i++) { pairs2add.push_back(get<0>(newPairs[i])); }
+	}
+
 }
 
 // Compute coverage between two sequences
@@ -280,6 +332,8 @@ double CCluster::ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, 
 	}
 	// If there's no PP pairs then no evidence either way and go with _acceptNoInfo
 	if(splitPPs.size() == 0) {
+		cout << "\nTesting " << get<0>(split2Test).Left << " | " << get<0>(split2Test).Right;
+		cout << "\n\t" << seq;
 		_warningNoInfo = true;
 		if(_acceptNoInfo) { return 1.0; } else { return 0.0; }
 	}
