@@ -52,6 +52,7 @@ private:
 	bool _acceptNoInfo = false;
 	bool _warningNoInfo = false;
 	bool _forceValidate = true; 		// This will loop through the alignment for each character of each sequence check there's a valid pair to check for it
+	bool _partialDifferent = false;		// Whether partial filtering runs as only individual sequences (true) or as the largest divvied cluster (false)
 	// 2. The number of pairwise comparisons to make for each split
 	int _approxNumber = 10;
 	// Variables

@@ -42,8 +42,8 @@ void CCluster::MakePairs(vector <string> &seq) {
 	vector <tuple <int , int , double> > distSet;			// The set of pairwise comparisons (int i, int j) and their distance (double)
 	vector <vector <int> > pairs2add;
 	for(SSplit &split : splits) {
-		// If just doing partial filtering only get for the trivial splits
-		if(!_doDivvying) { if(split.Left.size() != 1 && split.Right.size() != 1) { continue; } }
+		// If just doing special partial filtering only get for the trivial splits
+		if(!_doDivvying && _partialDifferent) { if(split.Left.size() != 1 && split.Right.size() != 1) { continue; } }
 		// Get the full list of pairwise comparisons in the splits
 		if(split.Left.size() > split.Right.size()) {
 			big = split.Left; small = split.Right;
@@ -250,7 +250,7 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 	// Greedily remove splits, worst first
 	vector <bool> splitDone(_splitPairs.size(),false);
 	// If doing partial filtering set all the non trivial splits to true
-	if(!_doDivvying) {
+	if(!_doDivvying && _partialDifferent) {
 		for(int i = 0; i < _splitPairs.size(); i++) {
 			if(get<0>(_splitPairs[i]).Left.size() != 1 && get<0>(_splitPairs[i]).Right.size() != 1) { splitDone[i] = true; }
 	}	}
@@ -279,6 +279,20 @@ void CCluster::SmartDivisive(vector <vector <int> > &retSplits, vector <double> 
 		}
 #endif
 	}
+	if(!_doDivvying && !_partialDifferent) {
+		// Get largest split
+		vector <int> largestSplit;
+		for(auto &s : retSplits) { if( s.size() > largestSplit.size()) { largestSplit = s; } }
+		// Reset all other splits
+		retSplits.clear();
+		retSplits.push_back(largestSplit);
+		for(int i = 0; i < NoSeq(); i++) {
+			if(find(largestSplit.begin(),largestSplit.end(),i) == largestSplit.end()) {
+				retSplits.push_back(vector <int>{i});
+			}
+		}
+	}
+
 }
 
 // Calculates a test statistic based on PPs and compares it to threshold. If greater it passes and returns true
