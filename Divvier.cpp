@@ -46,6 +46,9 @@ vector <string> names;
 vector <string> in_seq;
 void CreateZorro(); // Must be called after names and in_seq are initialised
 
+const double divvyThreshold = 0.801;		// 1% FDR
+const double partialThreshold = 0.857;		// Needs confirming, but currently 10% FDR due to sensitivity error
+
 // Structure defining options
 struct SOptions {
 	// File information
@@ -56,7 +59,8 @@ struct SOptions {
 	bool HMMapproximation = true;		// Whether to perform the pairHMM approximation
 	bool acceptNoInfo = false;			// Whether comparisons between sets when divvying are accepted if there's no information
 	int approxNumber = 10;
-	double threshold = 0.801;
+	double threshold = divvyThreshold;
+	bool forceValidate = false;
 	// Stuff not available to user
 	string divvy_char = "*";
 } options;
@@ -81,8 +85,8 @@ int main(int argc, char *argv[]) {
 			// Get the options
 			for(int i = 1 ; i < argc - 1; i++) {
 				if(argv[i][0] != '-') { continue; }
-				else if(strcmp(argv[i],"-divvy") == 0) { options.suffixDivvy = ".divvy"; options.doFullDivvy = 1; if(!doneThreshold) { options.threshold = 0.801; } }
-				else if(strcmp(argv[i], "-partialall") == 0) { options.suffixDivvy = ".partialall"; options.doFullDivvy = -1; options.threshold = 0.857; }
+				else if(strcmp(argv[i],"-divvy") == 0) { options.suffixDivvy = ".divvy"; options.doFullDivvy = 1; if(!doneThreshold) { options.threshold = divvyThreshold; } }
+				else if(strcmp(argv[i], "-partialall") == 0) { options.suffixDivvy = ".partialall"; options.doFullDivvy = -1; options.threshold = partialThreshold; }
 				else if(strcmp(argv[i], "-partial") == 0) { options.suffixDivvy = ".partial"; options.doFullDivvy = 0; options.divvy_char = "-"; if(!doneThreshold) { options.threshold = 0.857; } }
 				else if(strcmp(argv[i], "-HMMapprox") == 0) { options.HMMapproximation = true; }
 				else if(strcmp(argv[i], "-HMMexact") == 0) { options.HMMapproximation = false; }
@@ -91,6 +95,7 @@ int main(int argc, char *argv[]) {
 					if(!InRange(options.approxNumber,1,100000)) { cout << "\n-approx options requires X to be a positive number\n\n"; exit(-1); }
 				}
 				else if(strcmp(argv[i], "-thresh") == 0 ) { doneThreshold = true; options.threshold = atof(argv[i+1]); }
+				else if(strcmp(argv[i], "-checksplits") == 0) { options.forceValidate = true; }
 			}
 		} else { showHelp = true; }
 	} else { showHelp = true; }
@@ -102,6 +107,7 @@ int main(int argc, char *argv[]) {
 		cout << "\n\t-thresh X    : set the threshold for divvying to X (DEFAULT = " << options.threshold << ")";
 		cout << "\n\nApproximation options: ";
 		cout << "\n\t-approx X    : minimum number of characters tests in a split when divvying (DEFAULT X = " << options.approxNumber << ")";
+		cout << "\n\t-checksplits : go through sequence and ensure there's a pair for every split. Can be slow";
 		cout << "\n\t-HMMapprox   : Do the pairHMM bounding approximation (DEFAULT)";
 		cout << "\n\t-HMMexact    : Do the full pairHMM and ignore bounding";
 		cout << "\n\n";
@@ -109,7 +115,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Apply options
-	CCluster::Instance()->SetOptions(options.acceptNoInfo, options.approxNumber, (options.doFullDivvy != 1)?true:false);
+	CCluster::Instance()->SetOptions(options.acceptNoInfo, options.approxNumber, (options.doFullDivvy != 1)?true:false, options.forceValidate);
 	DO_HMM_APPROX = options.HMMapproximation;
 	if(!InRange(options.threshold,0.0,1.0)) { cout << "\nError: threshold must be in range (0,1)\n"; exit(-1); }
 	assert(seqData != NULL);

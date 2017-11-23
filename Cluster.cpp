@@ -61,7 +61,7 @@ void CCluster::MakePairs(vector <string> &seq) {
 		});
 		// Obtain samples. The rules are:
 		//	(1)	First COV_COUNT comparisons will always be those that maximise coverage
-		const int COV_COUNT = 2;
+		const int COV_COUNT = my_max(2,_approxNumber * 0.25);
 		// 	(2)	Unique sequences from the small data set are the priority, each with a different partner
 		// Some counters
 		vector <int> small_count(NoSeq(),0),big_count(NoSeq(),0);
@@ -332,8 +332,8 @@ double CCluster::ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, 
 	}
 	// If there's no PP pairs then no evidence either way and go with _acceptNoInfo
 	if(splitPPs.size() == 0) {
-		cout << "\nTesting " << get<0>(split2Test).Left << " | " << get<0>(split2Test).Right;
-		cout << "\n\t" << seq;
+//		cout << "\nTesting " << get<0>(split2Test).Left << " | " << get<0>(split2Test).Right;
+//		cout << "\n\t" << seq;
 		_warningNoInfo = true;
 		if(_acceptNoInfo) { return 1.0; } else { return 0.0; }
 	}
@@ -342,7 +342,7 @@ double CCluster::ScoreSplit(tuple <SSplit, vector <vector <int> > > split2Test, 
 	if(!activePPs.empty()) { cout << " ; activeStat: " << (double) Sum(&activePPs) / (double) activePPs.size(); }
 #endif
 	// Decision between the active or the normal stat
-	if(activePPs.size() >= activeSplit.size() - 1 || activePPs.size() > 2) {
+	if(activePPs.size() >= activeSplit.size() - 1 || activePPs.size() > _approxNumber/3) {
 		return ( (double) Sum(&activePPs) / (double) activePPs.size() );
 	}
 	return (Sum(&splitPPs) / (double) splitPPs.size());

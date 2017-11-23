@@ -28,10 +28,11 @@ public:
 		return true;
 	}
 												// Second initiation function that gets the splits from the tree
-	void SetOptions(bool acceptNoInfo, int approxNumber, bool partialFilter) {		// Function for setting the approximation stuff
-		_acceptNoInfo = acceptNoInfo;
-		_approxNumber = approxNumber;
-		_doDivvying = !partialFilter;
+	void SetOptions(bool acceptNoInfo, int approxNumber, bool partialFilter, bool forceValidate) {		// Function for setting the approximation stuff
+		_acceptNoInfo = acceptNoInfo;			// Whether to accept or reject if there's no pair for a split
+		_approxNumber = approxNumber;			// Number of pairs per split
+		_doDivvying = !partialFilter;			// Whether to do partial filtering or divvying
+		_forceValidate = forceValidate;			// Whether to enforce a number of pairs for every observed sequence at a split (slow)
 	}
 	// Access for the pairs needed for calculation
 	vector <vector <int> > PairsToCalculate();							// Gets the list of pairs to calculate
