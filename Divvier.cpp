@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
 	cout << "\n========================================================================";
 	cout << "\n    Divvier ("<<VERSION_NUMBER<<"): a program for MSA processing by Simon Whelan";
-	cout << "\n================================================================="======;
+	cout << "\n=======================================================================;
 
 	bool showHelp = false;
 	bool doneThreshold = false;
