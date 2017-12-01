@@ -13,6 +13,8 @@
 #include <sstream>
 #include "Tree.h"	// Mucky dependency, but this has the tools in it
 
+const string VERSION_NUMBER = "0.1a";		// Version number
+
 std::string MakeTree(std::vector <std::string> Names, std::vector <std::string> Seqs);
 double GetPercentDiff(std::string seq1, std::string seq2);
 double AAJCdist(double p);
