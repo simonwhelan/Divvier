@@ -47,7 +47,7 @@ vector <string> in_seq;
 void CreateZorro(); // Must be called after names and in_seq are initialised
 
 const double divvyThreshold = 0.801;		// 1% FDR
-const double partialThreshold = 0.857;		// Needs confirming, but currently 10% FDR due to sensitivity error
+const double partialThreshold = 0.774;		// Needs confirming, but currently 10% FDR due to sensitivity error
 
 // Structure defining options
 struct SOptions {
@@ -70,9 +70,9 @@ int main(int argc, char *argv[]) {
 	string fileIn;
 	vector <CSequence> *seqData = NULL;
 
-	cout << "\n=================================================================";
-	cout << "\n    Divvier : a program for MSA processing by Simon Whelan";
-	cout << "\n=================================================================";
+	cout << "\n========================================================================";
+	cout << "\n    Divvier ("<<VERSION_NUMBER<<"): a program for MSA processing by Simon Whelan";
+	cout << "\n================================================================="======;
 
 	bool showHelp = false;
 	bool doneThreshold = false;
