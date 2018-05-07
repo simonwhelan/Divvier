@@ -229,7 +229,7 @@ void CTree::CreateTree(string Tree, vector <string> Names, bool CheckVar, bool A
 	}
 	// 2. Number of species agree
 	if(NoSeq > 0 && j != NoSeq && AllowSubTree == false) {
-		if(CheckVar) { Error("\nDisagreement between number of species in file header ("+int_to_string(NoSeq)+") and number of species in file ("+int_to_string(j)+")"); }
+		if(CheckVar) { Error("\nCTree: Disagreement between number of species in file header ("+int_to_string(NoSeq)+") and number of species in file ("+int_to_string(j)+")"); }
 		else {
 			// Make sure difference between input tree and space reserved
 			mem_seq = NoSeq; NoSeq = j;

@@ -164,8 +164,8 @@ void calc_prep(int len) {
 	states = (int *) (malloc((len) * sizeof(int)));
 	checkSpaceX = (double *) malloc(len * sizeof(double));
 	checkSpaceY = (double *) malloc(len * sizeof(double));
-	leftBounds = (int *) malloc((len) * sizeof(int));
-	rightBounds = (int *) malloc((len) * sizeof(int));
+	leftBounds = (int *) malloc((len + 3) * sizeof(int));
+	rightBounds = (int *) malloc((len + 3) * sizeof(int));
 	for (i = 0; i < len; i++) {
 		zorro_posterior[i] = 0.0;
 	}
@@ -242,8 +242,9 @@ bool MakePosteriors(int X, int Y, bool Flip) {
 
 // Modified version of addPosterior
 void getSinglePosterior(int X, int Y) {
+	int i;
 	// Initialise the posterior to zero
-	for (int i = 0; i < alen; i++) {
+	for (i = 0; i < alen; i++) {
 		zorro_posterior[i] = 0.0;
 	}
 	// Normal call
@@ -906,18 +907,19 @@ void backward(char *seqX,char *seqY,int lenX,int lenY){
 ////////////////////////////////// Approximate PP routines //////////////////////////////////////
 
 void BuildBounds(int X, int Y, bool Flip) {
+	int i;
 	assert(lens[X] <= lens[Y]);
 	int *posX = Xpos, *posY = Ypos;
 	if(Flip) { posX = Ypos; posY = Xpos; }
 
 	// Initialise maximal bounds
-	for (int i = 0; i < lens[X] + 1; i++) {
+	for (i = 0; i < lens[X] + 1; i++) {
 		leftBounds[i] = 0; rightBounds[i] = lens[Y];
 	}
 	// Check the biggest difference in position between the sequences
 	int lastX = -1, lastY = -1, max = 0, countX = 0, countY = 0;
 //	printf("\n--Alntracker--\n");
-	for(int i = 0; i < alen; i++) {
+	for(i = 0; i < alen; i++) {
 //		printf("[i=%d] %d : %d\n",i,posX[i],posY[i]);
 		if(posX[i] > lastX) {
 			if(countX > max) { max = countX; }
@@ -937,18 +939,10 @@ void BuildBounds(int X, int Y, bool Flip) {
 	if(countY > max) { max = countY; }
 
 	//	Update using the MSA
-	for (int i = 0 ; i < alen; i++) {
+	for (i = 0 ; i < alen; i++) {
 		leftBounds[posX[i]] = my_max(leftBounds[posX[i]],posY[i] - BOUND_SIZE- max);
 		rightBounds[posX[i]] = my_min(rightBounds[posX[i]],posY[i] + BOUND_SIZE + max);
 	}
-/*
-	if (X == 6 && Y == 0) {
-		printf("\n---------- X=%d,Y=%d : Bounds %d (max: %d)-------------", X,Y, BOUND_SIZE,max);
-		for (int i = 0; i < lens[X]; i++) {
-			printf("\n[%d (Aln:%d)] : %d (Aln:%d) - %d (Aln:%d)", i, posX[i], leftBounds[i],posY[leftBounds[i]],rightBounds[i],posY[rightBounds[i]]);
-		}
-	}
-*/
 	posX = NULL; posY = NULL;
 }
 
