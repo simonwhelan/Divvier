@@ -27,6 +27,12 @@ public:
 		MakePairs(seq);
 		return true;
 	}
+	bool AddTree(CTree Tree, vector <string> &seq) {
+		if(Instance()->_tree.NoSeq() > 0) { return false; }
+		Instance()->_tree = Tree;
+		MakePairs(seq);
+		return true;
+	}
 												// Second initiation function that gets the splits from the tree
 	void SetOptions(bool acceptNoInfo, int approxNumber, bool partialFilter, bool forceValidate) {		// Function for setting the approximation stuff
 		_acceptNoInfo = acceptNoInfo;			// Whether to accept or reject if there's no pair for a split

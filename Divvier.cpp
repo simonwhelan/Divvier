@@ -45,6 +45,7 @@ vector <CPostP> allPP;		// Global holding the posteriors
 vector <string> names;
 vector <string> in_seq;
 void CreateZorro(); // Must be called after names and in_seq are initialised
+string MakeTreeNJDist(std::vector <std::string> Names, std::vector <std::string> Seqs);	// Function that actually builds the tree
 
 const double divvyThreshold = 0.801;		// 1% FDR
 const double partialThreshold = 0.774;		// Needs confirming, but currently 10% FDR due to sensitivity error
@@ -61,12 +62,13 @@ struct SOptions {
 	int approxNumber = 10;
 	double threshold = divvyThreshold;
 	bool forceValidate = false;
-	// Stuff not available to user
+	// Output info
+	int minDivvyChar = 2;
 	string divvy_char = "*";
 } options;
 
 int main(int argc, char *argv[]) {
-
+	int colCount = 0;
 	string fileIn;
 	vector <CSequence> *seqData = NULL;
 
@@ -87,15 +89,28 @@ int main(int argc, char *argv[]) {
 				if(argv[i][0] != '-') { continue; }
 				else if(strcmp(argv[i],"-divvy") == 0) { options.suffixDivvy = ".divvy"; options.doFullDivvy = 1; if(!doneThreshold) { options.threshold = divvyThreshold; } }
 				else if(strcmp(argv[i], "-partialall") == 0) { options.suffixDivvy = ".partialall"; options.doFullDivvy = -1; options.threshold = partialThreshold; }
-				else if(strcmp(argv[i], "-partial") == 0) { options.suffixDivvy = ".partial"; options.doFullDivvy = 0; options.divvy_char = "-"; if(!doneThreshold) { options.threshold = 0.857; } }
+				else if(strcmp(argv[i], "-partial") == 0) {
+					options.suffixDivvy = ".partial";
+					options.doFullDivvy = 0;
+					options.divvy_char = "-";
+					if(options.minDivvyChar < 2) { options.minDivvyChar = 2; }
+					if(!doneThreshold) { options.threshold = 0.857; }
+				}
 				else if(strcmp(argv[i], "-HMMapprox") == 0) { options.HMMapproximation = true; }
 				else if(strcmp(argv[i], "-HMMexact") == 0) { options.HMMapproximation = false; }
 				else if(strcmp(argv[i], "-approx") == 0) {
-					options.approxNumber = atoi(argv[i+1]);
+					if(!CheckNext(++i,argc,argv)) { cout << "\nError when setting X in -approx\n\n"; exit(-1); }
+					options.approxNumber = atoi(argv[i]);
 					if(!InRange(options.approxNumber,1,100000)) { cout << "\n-approx options requires X to be a positive number\n\n"; exit(-1); }
 				}
 				else if(strcmp(argv[i], "-thresh") == 0 ) { doneThreshold = true; options.threshold = atof(argv[i+1]); }
 				else if(strcmp(argv[i], "-checksplits") == 0) { options.forceValidate = true; }
+				else if(strcmp(argv[i], "-mincol") == 0) {
+					if(!CheckNext(++i,argc,argv)) { cout << "\nError when setting X in -mincol\n\n"; exit(-1); }
+					options.minDivvyChar = atoi(argv[i]);
+					if(!InRange(options.minDivvyChar,1,100000)) { cout << "\n-mincol options requires X to be a positive number\n\n"; exit(-1); }
+				}
+				else if(strcmp(argv[i], "-divvygap") == 0) { options.divvy_char = "-"; }
 			}
 		} else { showHelp = true; }
 	} else { showHelp = true; }
@@ -106,10 +121,13 @@ int main(int argc, char *argv[]) {
 		cout << "\n\t-partial     : do partial filtering by testing removal of individual characters";
 		cout << "\n\t-thresh X    : set the threshold for divvying to X (DEFAULT = " << options.threshold << ")";
 		cout << "\n\nApproximation options: ";
-		cout << "\n\t-approx X    : minimum number of characters tests in a split when divvying (DEFAULT X = " << options.approxNumber << ")";
+		cout << "\n\t-approx X    : minimum number of characters tested in a split during divvying (DEFAULT X = " << options.approxNumber << ")";
 		cout << "\n\t-checksplits : go through sequence and ensure there's a pair for every split. Can be slow";
 		cout << "\n\t-HMMapprox   : Do the pairHMM bounding approximation (DEFAULT)";
 		cout << "\n\t-HMMexact    : Do the full pairHMM and ignore bounding";
+		cout << "\n\nOutput options: ";
+		cout << "\n\t-mincol X    : Minimum number of characters in a column to output when divvying/filtering (DEFAULT X = " << options.minDivvyChar << ")";
+		cout << "\n\t-divvygap    : Output a gap instead of the static * character so divvied MSAs can be used in phylogeny";
 		cout << "\n\n";
 		exit(-1);
 	}
@@ -143,13 +161,14 @@ int main(int argc, char *argv[]) {
 
 	cout << "\nPerforming ";
 	switch(options.doFullDivvy) {
-	case -1: cout << "partial divvying with full output"; break;
-	case 0:  cout << "partial"; break;
-	case 1:  cout << "full"; break;
+	case -1: cout << "partial filtering  with full output"; break;
+	case 0:  cout << "partial filtering"; break;
+	case 1:  cout << "full divvying"; break;
 	default:
 		cout << "\nUnknown options for divvying..."; exit(-1);
 	}
-	cout << " divvying along alignment with threshold " << options.threshold << endl << flush;
+	cout << " along alignment with threshold " << options.threshold;
+	cout << "\nEach column required to have " << options.minDivvyChar << " characters" << endl << flush;
 
 	vector <stringstream> out_seq(Nseq);
 	vector <double> PP(Nseq*Nseq,1);
@@ -172,13 +191,13 @@ int main(int argc, char *argv[]) {
 		for(auto & v : divvy) {
 			// Count characters for output
 			int count = 0;
-			if(options.doFullDivvy == 0) { for(auto x : v) { if(!IsGap(in_seq[x][i])) { count ++; } } }
-			else { for(auto x : v) { if(!IsGap(in_seq[x][i])) { count ++; break; } } }
+			for(auto x : v) { if(!IsGap(in_seq[x][i])) { count ++; } }
 			// Always skip if all gaps
 			if(count == 0) { continue; }
-			// Skip for partial filtering if only a single character and the column is divvied
-			if(count == 1 && options.doFullDivvy == 0) { continue; }
+			// Skip for normal divvying or partial filtering if fewer than options.minDivvyChar characters in the column
+			if(count <= options.minDivvyChar && options.doFullDivvy >= 0) { continue; }
 			// Do output
+			colCount ++;
 			for(int j = 0; j < Nseq; j++)  {
 				if(IsGap(in_seq[j][i])) {	// Sort gaps
 					out_seq[j] << in_seq[j][i];
@@ -195,7 +214,7 @@ int main(int argc, char *argv[]) {
 	string outfile = fileIn + options.suffixDivvy;
 	replace(outfile,".fas","");
 	outfile += ".fas";
-	cout << "\nDivvying complete. Outputting to " << outfile;
+	cout << "\nDivvying complete. Outputting " << colCount << " columns to " << outfile;
 	ofstream out(outfile.c_str());
 	for(int i = 0; i < Nseq ; i++) {
 		out << ">" << names[i] << endl;
@@ -261,8 +280,16 @@ void GetPosteriors(string File) {
 	}
 }
 
+// Wrapper function for MakeTreeNJDist to cope with weird characters in taxa names
+CTree MakeTree(vector <string> n, vector <string> s) {
+	vector <string> newName(n.size());
+	for(int i = 0; i < n.size(); i++) { newName[i] = "seq" + int_to_string(i); }
+	CTree retTree(MakeTreeNJDist(newName,s),newName);
+	retTree.SetNames(n,true);
+	return retTree;
+}
 
-string MakeTree(vector <string> n, vector <string> s) {
+string MakeTreeNJDist(vector <string> n, vector <string> s) {
 	int no_seq = n.size();
 	assert(n.size() == s.size());
 	vector <double> distances(no_seq * no_seq, 0);
@@ -314,3 +341,10 @@ void CreateZorro() {
 	initHMM(alen);
 	calc_prep(alen);
 }
+
+bool CheckNext(int i, int argc, char *argv[]) {
+	if(i == argc) { return false; }
+	if(argv[i][0] == '-') { return false; }
+	return true;
+}
+

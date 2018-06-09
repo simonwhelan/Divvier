@@ -13,14 +13,15 @@
 #include <sstream>
 #include "Tree.h"	// Mucky dependency, but this has the tools in it
 
-const string VERSION_NUMBER = "0.1a";		// Version number
+const string VERSION_NUMBER = "0.2beta";		// Version number
 
-std::string MakeTree(std::vector <std::string> Names, std::vector <std::string> Seqs);
+CTree MakeTree(std::vector <std::string> Names, std::vector <std::string> Seqs);	// Make a distance based guide tree
 double GetPercentDiff(std::string seq1, std::string seq2);
 double AAJCdist(double p);
 bool IsGap(char c);
 
 std::string DoBioNJ(std::vector <double> PWdists, std::vector <std::string> Names, bool DoNumbers = false);
+bool CheckNext(int i, int argc, char *argv[]);	// For options
 
 void GetPosteriors(std::string File);
 
