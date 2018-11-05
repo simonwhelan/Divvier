@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
 		cout << "\n\nClustering options:";
 		cout << "\n\t-divvy       : do standard divvying (DEFAULT)";
 		cout << "\n\t-partial     : do partial filtering by testing removal of individual characters";
-		cout << "\n\t-thresh X    : set the threshold for divvying to X (DEFAULT = " << options.threshold << ")";
+		cout << "\n\t-thresh X    : set the threshold for divvying to X (DEFAULT divvying = " << divvyThreshold << "; partial = " << partialThreshold << ")";
 		cout << "\n\nApproximation options: ";
 		cout << "\n\t-approx X    : minimum number of characters tested in a split during divvying (DEFAULT X = " << options.approxNumber << ")";
 		cout << "\n\t-checksplits : go through sequence and ensure there's a pair for every split. Can be slow";
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 		cout << "\n\t-HMMexact    : Do the full pairHMM and ignore bounding";
 		cout << "\n\nOutput options: ";
 		cout << "\n\t-mincol X    : Minimum number of characters in a column to output when divvying/filtering (DEFAULT X = " << options.minDivvyChar << ")";
-		cout << "\n\t-divvygap    : Output a gap instead of the static * character so divvied MSAs can be used in phylogeny";
+		cout << "\n\t-divvygap    : Output a gap instead of the static * character so divvied MSAs can be used in phylogeny program";
 		cout << "\n\n";
 		exit(-1);
 	}
@@ -186,8 +186,7 @@ int main(int argc, char *argv[]) {
 		for(int k = 0; k < Nseq; k++) { seq = seq + in_seq[k][i]; }
 		vector <vector <int> > divvy = CCluster::Instance()->OutputClusters(PP,seq,options.threshold);
 		// Sort output
-		if(divvy.size() == Nseq && options.doFullDivvy == 0) { continue; }			// Skip clusters that are fully split
-
+		if((divvy.size() == Nseq && options.minDivvyChar > 1) && options.doFullDivvy == 0) { continue; }
 		for(auto & v : divvy) {
 			// Count characters for output
 			int count = 0;
@@ -195,7 +194,7 @@ int main(int argc, char *argv[]) {
 			// Always skip if all gaps
 			if(count == 0) { continue; }
 			// Skip for normal divvying or partial filtering if fewer than options.minDivvyChar characters in the column
-			if(count <= options.minDivvyChar && options.doFullDivvy >= 0) { continue; }
+			if(count < options.minDivvyChar && options.doFullDivvy >= 0) { continue; }
 			// Do output
 			colCount ++;
 			for(int j = 0; j < Nseq; j++)  {

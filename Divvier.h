@@ -13,7 +13,7 @@
 #include <sstream>
 #include "Tree.h"	// Mucky dependency, but this has the tools in it
 
-const string VERSION_NUMBER = "0.2beta";		// Version number
+const string VERSION_NUMBER = "1.0 (release)";		// Version number
 
 CTree MakeTree(std::vector <std::string> Names, std::vector <std::string> Seqs);	// Make a distance based guide tree
 double GetPercentDiff(std::string seq1, std::string seq2);

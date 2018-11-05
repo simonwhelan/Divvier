@@ -1,14 +1,6 @@
 ## Divvier: a program for removing MSA uncertainty by Simon Whelan
 
-Divvier in the beta stages of development. It is not released and the methodology is is in the process of being written up for publication. If you wish to use it then please contact me and I can ensure that you use it correctly. (It's currently very easy to interpret its output incorrectly.) 
-
-For now the recommended usage is along the lines of:
-```
-./divvier -partial -mincol 5 myMSAfile.fas
-```
-This will give you a partially filtered MSA (individual characters removed; _not_ columns) with at least 5 characters in each column. 
-
-The following options are available in divvier
+Divvier is now submitted for publication. The following options are available in divvier
 
 Clustering options:
 ```
@@ -28,3 +20,16 @@ Output options:
 	-mincol X    : Minimum number of characters in a column to output when divvying/filtering (DEFAULT X = 2)
 	-divvygap    : Output a gap instead of the static * character so divvied MSAs can be used in phylogeny
 ```
+
+#### Recommended usage
+
+There are two main modes for running divvier on an alignment file: full divvying and partial filtering. Full divvying is the default option and will aim to retain as much information in the MSA as possible. For immediate phylogenetic use we suggest the following that will require at least 4 character per column and produce output to myfile.divvy.fas that will work as input into standard phylogeny programs:
+```
+./divvier -mincol 4 -divvygap myfile.fas
+```
+Partial filtering can be done by adding a single option to this command line:
+```
+./divvier –partial -mincol 4 -divvygap myfile.fas
+```
+
+
