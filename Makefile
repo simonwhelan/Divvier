@@ -1,8 +1,8 @@
 CC=gcc
 CPP=g++
 OPTIMISER = -O3
-CPPFLAGS = $(OPTIMISER) -std=c++14 -Wall -Wmissing-prototypes -Wshadow -fmessage-length=0 -msse2 -mfpmath=sse
-CFLAGS = $(OPTIMISER) -Wall -Wmissing-prototypes -Wshadow 
+CPPFLAGS = $(OPTIMISER) -std=c++14 -Wno-all -fmessage-length=0 -msse2 -mfpmath=sse
+CFLAGS = $(OPTIMISER) -std=c99 -Wno-all
 #CFLAGS = -g 
 
 # C Code
